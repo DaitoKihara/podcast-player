@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:podcast_player/data/repositories/podcast_repository.dart';
+import 'package:podcast_player/data/datasources/local/app_database.dart';
 import 'package:podcast_player/domain/entities/podcast_search_query.dart';
 
 void main() {

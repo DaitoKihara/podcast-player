@@ -8,7 +8,7 @@
 |----|-----------------------|-----------------------------|--------|
 | D1 | iTunes Search APIでポッドキャスト検索が動作する | `flutter test` でAPIクライアントのユニットテストが通る | checker-fail |
 | D2 | RSSフィードパーサーがエピソード一覧を取得できる | `flutter test` でパーサーのユニットテストが通る | checker-fail |
-| D3 | PodcastRepositoryで購読・解除ができる | `flutter test` でリポジトリのユニットテストが通る | checker-pass |
+| D3 | PodcastRepositoryで購読・解除ができる | `flutter test` でリポジトリのユニットテストが通る | checker-fail |
 | D4 | SearchScreenで検索結果が表示される | 検索画面をビルドして結果が表示される | checker-pass |
 | D5 | PodcastDetailScreenで購読トグルができる | 詳細画面をビルドしてボタンが動作 | checker-fail |
 | D6 | HomeScreenで購読一覧が表示される | ホーム画面をビルドしてリストが表示 | checker-pass |
@@ -40,4 +40,5 @@ Statuses: pending → maker-ready → checker-pass | checker-fail → human-sign
 
 ## State
 - Phase: running
-- Last updated: 2026-09-03
+- Last updated: 2026-09-03 (2nd checker pass)
+- Iterations run: 1 (2nd pass: tests added but still failing)

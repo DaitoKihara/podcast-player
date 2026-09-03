@@ -10,8 +10,6 @@ void main() {
     });
 
     test('searchPodcasts returns list of results', () async {
-      // Note: This test requires network access
-      // In a real project, you'd mock the Dio client
       final results = await client.searchPodcasts(
         term: 'tech',
         limit: 10,
@@ -19,11 +17,10 @@ void main() {
       );
 
       expect(results, isA<List>());
-      // If the API returns results, verify the structure
       if (results.isNotEmpty) {
         final first = results.first;
-        expect(first.title, isA<String>());
-        expect(first.author, isA<String>());
+        expect(first.collectionName, isA<String>());
+        expect(first.artistName, isA<String>());
       }
     });
 

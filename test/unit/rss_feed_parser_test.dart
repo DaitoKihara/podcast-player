@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:podcast_player/data/datasources/remote/rss_feed_parser.dart';
+import 'package:podcast_player/domain/entities/app_exception.dart';
 
 void main() {
   group('RssFeedParser', () {
@@ -10,10 +11,8 @@ void main() {
     });
 
     test('parseFeed returns RssFeedResult with podcast info and episodes', () async {
-      // Note: This test requires network access
-      // In a real project, you'd mock the Dio client
       final result = await parser.parseFeed(
-        'https://feeds.simplecast.com/54nAGcIl', // Example RSS feed
+        'https://feeds.simplecast.com/54nAGcIl',
       );
 
       expect(result.podcastInfo, isA<PodcastInfo>());
@@ -25,7 +24,7 @@ void main() {
     test('parseFeed handles invalid URL gracefully', () async {
       expect(
         () => parser.parseFeed('https://invalid-url-that-does-not-exist.com/feed'),
-        throwsA(isA<Exception>()),
+        throwsA(isA<AppException>()),
       );
     });
   });

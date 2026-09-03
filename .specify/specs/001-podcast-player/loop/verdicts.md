@@ -1,7 +1,7 @@
 # Checker Verdicts
 
 Adversarial verification of D1-D7 against primary sources.
-Checker: independent session (adversarial grader)
+Checker: independent session (adversarial grader) — SECOND PASS
 Date: 2026-09-03
 
 ---
@@ -18,14 +18,16 @@ Date: 2026-09-03
 - Error handling: `DioException` catch + generic catch — PRESENT
 - Uses `createITunesDio()` from `core/network/dio_client.dart` — PRESENT
 - `PodcastSearchResult.fromJson` factory — PRESENT
+- Test file: `test/unit/itunes_api_client_test.dart` — EXISTS
 
 ### Adversarial findings
-1. **No unit tests exist.** `test/` contains only `widget_test.dart` with a placeholder `expect(1+1, equals(2))`. The loop.md verification criterion ("flutter test で…ユニットテストが通る") cannot be satisfied — there is no test to run.
-2. Minor lint: `sort_constructors_first` (info-level only).
+1. **Test compilation failure.** The test references `first.title` and `first.author` but `PodcastSearchResult` has fields named `collectionName` and `artistName`. The getters `title` and `author` do not exist on the class. This causes a compilation error: `undefined_getter`.
+2. **Test requires network access.** The test calls the live iTunes API (`client.searchPodcasts(term: 'tech', ...)`), making it an integration test, not a unit test. It will fail in CI/offline environments.
+3. **`flutter test` result: FAILED.** Exit code 1. The test file fails to compile.
 
 ### Verdict: **FAIL**
-**Confidence:** High
-**Reason:** The code structure is correct, but the loop.md verification path (unit tests) has zero tests. The criterion as written in loop.md is not met.
+**Confidence:** Certain
+**Reason:** Tests do not compile due to referencing non-existent getters (`title`, `author` on `PodcastSearchResult`). The loop.md verification path ("flutter test で…ユニットテストが通る") cannot be satisfied.
 
 ---
 
@@ -40,19 +42,17 @@ Date: 2026-09-03
 - Method `parseFeed(String rssUrl)` — PRESENT
 - Uses `rss_dart` (`RssFeed.parse`) — PRESENT
 - Returns `RssFeedResult` with `PodcastInfo` and `List<EpisodeInfo>` — PRESENT
+- RFC 822 date parsing fix: Uses `DateFormat('EEE, dd MMM yyyy HH:mm:ss', 'en_US')` — PRESENT
+- Test file: `test/unit/rss_feed_parser_test.dart` — EXISTS
 
 ### Adversarial findings
-1. **No unit tests exist** (same as D1).
-2. **Functional bug — `DateTime.tryParse` on RFC 822 dates.** Line 33:
-   ```dart
-   DateTime.tryParse(item.pubDate ?? '') ?? DateTime.now(),
-   ```
-   RSS feeds use RFC 822 dates (e.g., `"Mon, 03 Sep 2026 12:00:00 GMT"`). `DateTime.tryParse` only accepts ISO 8601 / RFC 3339 format. It will return `null` for virtually all real-world RSS feeds, causing every episode's `publishDate` to fall back to `DateTime.now()`. The maker flagged this risk themselves but did not fix it.
-3. `only_throw_errors` lint warnings: `AppException` is a freezed sealed class implementing `Exception` via `with _$AppException`, but the linter doesn't recognize it as an Exception subtype. This is a lint false-positive but indicates the class hierarchy is non-standard.
+1. **Test failure — exception type mismatch.** The test expects `throwsA(isA<Exception>())` for an invalid URL. The parser throws `FeedParseException` (a freezed sealed class implementing `AppException`). The `isA<Exception>()` matcher fails because `FeedParseException` does not extend `Exception` directly — it extends `AppException` (a freezed class). The test output shows: `threw FeedParseException:<...> which is not an instance of 'Exception'`.
+2. **First test requires network access.** Calls a live RSS feed URL, making it an integration test.
+3. **`flutter test` result: FAILED.** The "invalid URL" test fails with the exception type mismatch.
 
 ### Verdict: **FAIL**
 **Confidence:** High
-**Reason:** (1) No tests; (2) `DateTime.tryParse` will fail on real RSS feeds, producing incorrect publish dates for all episodes. This is a functional correctness bug.
+**Reason:** Tests don't pass. The exception type assertion is incorrect — `FeedParseException` doesn't extend `Exception` in a way that `isA<Exception>()` recognizes. The maker fixed the RFC 822 date parsing bug (good), but the test itself is broken.
 
 ---
 
@@ -67,15 +67,16 @@ Date: 2026-09-03
 - Method `subscribe(Podcast podcast)` — PRESENT (inserts into `podcasts` and `subscriptions`)
 - Method `unsubscribe(int podcastId)` — PRESENT (deletes from `subscriptions` and `podcasts`)
 - Getter `subscribedPodcasts` — PRESENT
+- Test file: `test/unit/podcast_repository_test.dart` — EXISTS
 
 ### Adversarial findings
-1. **No unit tests exist** (same as D1, D2).
-2. **`subscribedPodcasts` is misleadingly typed.** It returns `Stream<List<Podcast>>` but is implemented as `Stream.fromFuture(query.get())` — a single-emission stream that completes after one event. This is not a reactive stream; it's a one-shot future disguised as a stream. The UI in `home_screen.dart` uses `.first` on it, which works, but the type signature is semantically incorrect and would mislead future developers.
-3. The maker's concern about "AppDatabase not extending QueryExecutor" is a non-issue — Drift's generated `_$AppDatabase` extends `GeneratedDatabase` (which extends `QueryExecutor`). The code compiles fine.
+1. **Test compilation failure.** The test uses `Podcast(...)` constructor but never imports the `Podcast` class. The `Podcast` entity is defined in `lib/data/datasources/local/app_database.g.dart` (Drift generated code), which is not imported. Error: `undefined_function: 'Podcast'`.
+2. **Test requires real database.** Even if the import were fixed, `PodcastRepository()` uses `AppDatabase.instance` which requires a real Drift database. Without mocking, these tests will fail at runtime.
+3. **`flutter test` result: FAILED.** Exit code 1. Compilation error.
 
-### Verdict: **PASS** (with concerns)
-**Confidence:** Medium
-**Reason:** subscribe/unsubscribe methods exist and have correct structure. The `Stream.fromFuture` pattern is a code smell but functionally works for the current UI. No tests exist to satisfy loop.md's verification path.
+### Verdict: **FAIL**
+**Confidence:** Certain
+**Reason:** Tests do not compile due to missing import for the `Podcast` class. The loop.md verification path cannot be satisfied.
 
 ---
 
@@ -95,11 +96,11 @@ Date: 2026-09-03
 
 ### Adversarial findings
 1. `onTap` in the result list is empty (no navigation to detail). This is a missing feature but not part of D4's criterion.
-2. Minor lints: `avoid_redundant_argument_values` (passing default values explicitly), `unnecessary_underscores`.
+2. Minor lints: `avoid_redundant_argument_values`, `unnecessary_underscores`.
 
 ### Verdict: **PASS**
 **Confidence:** High
-**Reason:** Search UI is fully implemented with all required elements.
+**Reason:** Search UI is fully implemented with all required elements. Unchanged from previous pass.
 
 ---
 
@@ -112,16 +113,18 @@ Date: 2026-09-03
 - File: `lib/presentation/screens/podcast_detail/podcast_detail_screen.dart` — EXISTS
 - Class `PodcastDetailScreen` (StatefulWidget) — PRESENT
 - Subscribe/Unsubscribe button — PRESENT (text toggles based on `_isSubscribed`)
+- `_repository` field — PRESENT (now used)
+- `_checkSubscription()` — NOW CALLS `_repository.getSubscription()` (improved from stub)
+- `_toggleSubscription()` unsubscribe path — NOW CALLS `_repository.unsubscribe()` (improved from stub)
 
 ### Adversarial findings
-1. **`_toggleSubscription()` is a stub.** It only flips the boolean `_isSubscribed = !_isSubscribed` but never calls `_repository.subscribe()` or `_repository.unsubscribe()`. The button does not actually subscribe or unsubscribe.
-2. **`_checkSubscription()` is a stub.** Empty TODO — never checks if the user is already subscribed.
-3. **`_repository` field is unused** — confirmed by flutter analyze (`unused_field` warning).
-4. The screen shows only "Podcast ID: X" with no podcast metadata (title, author, artwork).
+1. **Subscribe path is still a stub.** Line 51: `throw UnimplementedError('Podcast subscription requires fetching podcast data first');`. The subscribe action throws an exception instead of performing the subscription. Only unsubscribe works.
+2. **Partial fix acknowledged.** The maker did improve the code — `_checkSubscription()` and unsubscribe now work. But the subscribe path is still broken, so the toggle is not fully functional.
+3. The screen still shows only "Podcast ID: X" with no podcast metadata.
 
 ### Verdict: **FAIL**
 **Confidence:** High
-**Reason:** The toggle button does not perform any subscription action. It's a UI-only stub. The `_repository` is injected but never used.
+**Reason:** The subscribe action throws `UnimplementedError`. The toggle button does not fully work — only unsubscribe is functional. The criterion requires the button to work for both subscribe and unsubscribe.
 
 ---
 
@@ -144,7 +147,7 @@ Date: 2026-09-03
 
 ### Verdict: **PASS**
 **Confidence:** High
-**Reason:** Subscription list UI is fully implemented.
+**Reason:** Subscription list UI is fully implemented. Unchanged from previous pass.
 
 ---
 
@@ -154,18 +157,23 @@ Date: 2026-09-03
 **Task instruction:** Run `flutter analyze` in the project root and check exit code
 
 ### Primary source verified
-- Command run: `cd /home/daito/podcast-player && flutter analyze`
+- Command run: `cd /home/daito/podcast-player && flutter analyze; echo "EXIT_CODE=$?"`
 - Exit code: **1** (not 0)
-- Issues found: **20**
-  - 2 warnings (unused imports in `app_database.dart` and `main.dart`)
-  - 18 info-level lints
+- Issues found: **24**
+  - 3 errors (all in test files):
+    - `undefined_getter: 'title'` in `itunes_api_client_test.dart:25`
+    - `undefined_getter: 'author'` in `itunes_api_client_test.dart:26`
+    - `undefined_function: 'Podcast'` in `podcast_repository_test.dart:27,50`
+  - 21 info-level lints (pre-existing, not new)
 
 ### Adversarial findings
-The criterion explicitly requires exit code 0. The actual exit code is 1. Even though there are no errors (only warnings and info), `flutter analyze` returns exit code 1 when any issues are present.
+1. The criterion explicitly requires exit code 0. The actual exit code is 1.
+2. Even if the test errors were fixed, the 21 info-level lints would still cause exit code 1. `flutter analyze` returns exit code 1 when ANY issues (info, warning, or error) are present.
+3. The new test files introduced 3 compilation errors that also contribute to the failure.
 
 ### Verdict: **FAIL**
 **Confidence:** Certain
-**Reason:** `flutter analyze` returned exit code 1 with 20 issues. The criterion requires exit code 0.
+**Reason:** `flutter analyze` returned exit code 1 with 24 issues (3 errors, 21 info). The criterion requires exit code 0. Both the new test errors and pre-existing lints contribute.
 
 ---
 
@@ -173,12 +181,22 @@ The criterion explicitly requires exit code 0. The actual exit code is 1. Even t
 
 | Criterion | Verdict | Confidence | Key Issue |
 |-----------|---------|------------|-----------|
-| D1 | FAIL | High | No unit tests exist |
-| D2 | FAIL | High | No tests; DateTime.tryParse fails on RFC 822 dates |
-| D3 | PASS (concerns) | Medium | No tests; Stream.fromFuture is a code smell |
-| D4 | PASS | High | Search UI complete |
-| D5 | FAIL | High | Toggle is a stub — doesn't call repository |
-| D6 | PASS | High | Subscription list UI complete |
-| D7 | FAIL | Certain | flutter analyze exit code is 1, not 0 |
+| D1 | FAIL | Certain | Tests don't compile — `title`/`author` getters don't exist on `PodcastSearchResult` |
+| D2 | FAIL | High | Tests fail — `FeedParseException` not recognized as `Exception` by matcher |
+| D3 | FAIL | Certain | Tests don't compile — `Podcast` class not imported |
+| D4 | PASS | High | Search UI complete (unchanged) |
+| D5 | FAIL | High | Subscribe path throws `UnimplementedError` — only unsubscribe works |
+| D6 | PASS | High | Subscription list UI complete (unchanged) |
+| D7 | FAIL | Certain | `flutter analyze` exit code is 1 (24 issues: 3 errors, 21 info) |
 
 **Overall: 3 PASS, 4 FAIL**
+
+### Maker progress since 1st pass
+- D1: Added test file, but tests don't compile ❌
+- D2: Added test file + fixed RFC 822 date parsing, but test fails due to exception type mismatch ❌
+- D3: Added test file, but tests don't compile ❌
+- D5: Partially fixed — `_checkSubscription()` and unsubscribe now work, but subscribe still throws ❌
+- D7: Still exit code 1 (new test errors + pre-existing lints) ❌
+
+### Key blocker pattern
+All three new test files (D1, D2, D3) have compilation or runtime errors that prevent `flutter test` from passing. The tests appear to have been written without verifying they compile against the actual class interfaces.
