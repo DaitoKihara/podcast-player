@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:podcast_player/domain/entities/player_state.dart';
 import 'package:podcast_player/presentation/providers/player_provider.dart';
+import 'package:podcast_player/core/utils/duration_formatter.dart';
 
 /// Full-screen player interface with comprehensive playback controls.
 class PlayerScreen extends ConsumerWidget {
@@ -88,8 +89,8 @@ class PlayerScreen extends ConsumerWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(_formatDuration(position)),
-                        Text(_formatDuration(duration)),
+                        Text(formatDuration(position)),
+                        Text(formatDuration(duration)),
                       ],
                     ),
                   ),
@@ -154,15 +155,5 @@ class PlayerScreen extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  String _formatDuration(Duration duration) {
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes.remainder(60);
-    final seconds = duration.inSeconds.remainder(60);
-    if (hours > 0) {
-      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-    }
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 }

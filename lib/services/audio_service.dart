@@ -16,7 +16,7 @@ class AudioService {
       _player = _playerOverride;
       _initStreams();
     } else if (_isTestMode) {
-      _player = _FakeAudioPlayer();
+      _player = null;
       _initStreamsForTests();
     } else {
       _player = AudioPlayer();
@@ -25,7 +25,7 @@ class AudioService {
   }
 
   final AudioPlayer? _playerOverride;
-  late AudioPlayer _player;
+  AudioPlayer? _player;
   final bool _isTestMode;
 
   final _playerStateController = StreamController<AudioPlayerState>.broadcast();
@@ -51,38 +51,35 @@ class AudioService {
   bool get isTestMode => _isTestMode;
 
   static bool _isRunningInTest() {
-    try {
-      // Check if we're in a test environment by looking for test-specific environment
-      return const bool.fromEnvironment('FLUTTER_TEST') ||
-          Platform.environment.containsKey('FLUTTER_TEST');
-    } catch (e) {
-      return true;
-    }
+    return Platform.environment.containsKey('FLUTTER_TEST');
   }
 
   void _initStreams() {
-    _player.playerStateStream.listen((state) {
+    final player = _player;
+    if (player == null) return;
+
+    player.playerStateStream.listen((state) {
       _currentState = _currentState.copyWith(
         status: _mapProcessingState(state.processingState),
-        position: _player.position,
-        duration: _player.duration ?? Duration.zero,
+        position: player.position,
+        duration: player.duration ?? Duration.zero,
       );
       _playerStateController.add(_currentState);
     });
 
-    _player.positionStream.listen((position) {
+    player.positionStream.listen((position) {
       _positionController.add(position);
       _currentState = _currentState.copyWith(position: position);
     });
 
-    _player.durationStream.listen((duration) {
+    player.durationStream.listen((duration) {
       _durationController.add(duration);
       if (duration != null) {
         _currentState = _currentState.copyWith(duration: duration);
       }
     });
 
-    _player.speedStream.listen((speed) {
+    player.speedStream.listen((speed) {
       _currentState = _currentState.copyWith(speed: speed);
       _playerStateController.add(_currentState);
     });
@@ -113,6 +110,9 @@ class AudioService {
       return;
     }
 
+    final player = _player;
+    if (player == null) return;
+
     try {
       final audioSource = AudioSource.uri(
         Uri.parse(audioUrl),
@@ -124,13 +124,13 @@ class AudioService {
         ),
       );
 
-      await _player.setAudioSource(audioSource);
+      await player.setAudioSource(audioSource);
 
       if (startPosition > Duration.zero) {
-        await _player.seek(startPosition);
+        await player.seek(startPosition);
       }
 
-      await _player.play();
+      await player.play();
     } on Exception catch (e) {
       _currentState = _currentState.copyWith(
         status: AudioStatus.error,
@@ -147,7 +147,7 @@ class AudioService {
       _playerStateController.add(_currentState);
       return;
     }
-    await _player.pause();
+    await _player?.pause();
   }
 
   /// Resumes playback if paused.
@@ -157,7 +157,7 @@ class AudioService {
       _playerStateController.add(_currentState);
       return;
     }
-    await _player.play();
+    await _player?.play();
   }
 
   /// Stops playback and resets position.
@@ -167,7 +167,7 @@ class AudioService {
       _playerStateController.add(_currentState);
       return;
     }
-    await _player.stop();
+    await _player?.stop();
   }
 
   /// Seeks to a specific position.
@@ -177,7 +177,7 @@ class AudioService {
       _positionController.add(position);
       return;
     }
-    await _player.seek(position);
+    await _player?.seek(position);
   }
 
   /// Sets playback speed (0.5x to 3.0x).
@@ -188,7 +188,7 @@ class AudioService {
       _playerStateController.add(_currentState);
       return;
     }
-    await _player.setSpeed(clampedSpeed);
+    await _player?.setSpeed(clampedSpeed);
   }
 
   /// Skips forward by the specified duration (default 30 seconds).
@@ -199,9 +199,11 @@ class AudioService {
       _positionController.add(newPosition);
       return;
     }
-    final newPosition = _player.position + duration;
-    final maxDuration = _player.duration ?? Duration.zero;
-    await _player.seek(newPosition > maxDuration ? maxDuration : newPosition);
+    final player = _player;
+    if (player == null) return;
+    final newPosition = player.position + duration;
+    final maxDuration = player.duration ?? Duration.zero;
+    await player.seek(newPosition > maxDuration ? maxDuration : newPosition);
   }
 
   /// Skips backward by the specified duration (default 10 seconds).
@@ -213,28 +215,36 @@ class AudioService {
       _positionController.add(clamped);
       return;
     }
-    final newPosition = _player.position - duration;
-    await _player.seek(newPosition < Duration.zero ? Duration.zero : newPosition);
+    final player = _player;
+    if (player == null) return;
+    final newPosition = player.position - duration;
+    await player.seek(newPosition < Duration.zero ? Duration.zero : newPosition);
   }
 
   /// Whether the player is currently playing.
   bool get isPlaying => _isTestMode
       ? _currentState.status == AudioStatus.playing
-      : _player.playing;
+      : (_player?.playing ?? false);
 
   /// Current playback position.
-  Duration get position => _isTestMode ? _currentState.position : _player.position;
+  Duration get position => _isTestMode
+      ? _currentState.position
+      : (_player?.position ?? Duration.zero);
 
   /// Total duration of current episode.
-  Duration? get duration => _isTestMode ? _currentState.duration : _player.duration;
+  Duration? get duration => _isTestMode
+      ? _currentState.duration
+      : _player?.duration;
 
   /// Current playback speed.
-  double get speed => _isTestMode ? _currentState.speed : _player.speed;
+  double get speed => _isTestMode
+      ? _currentState.speed
+      : (_player?.speed ?? 1.0);
 
   /// Disposes of the audio player resources.
   Future<void> dispose() async {
     if (!_isTestMode) {
-      await _player.dispose();
+      await _player?.dispose();
     }
     await _playerStateController.close();
     await _positionController.close();
@@ -250,7 +260,7 @@ class AudioService {
       case ProcessingState.buffering:
         return AudioStatus.loading;
       case ProcessingState.ready:
-        return _player.playing ? AudioStatus.playing : AudioStatus.paused;
+        return _player?.playing ?? false ? AudioStatus.playing : AudioStatus.paused;
       case ProcessingState.completed:
         return AudioStatus.stopped;
     }
@@ -301,10 +311,4 @@ enum AudioStatus {
   paused,
   stopped,
   error,
-}
-
-/// A fake AudioPlayer for test environments where just_audio is unavailable.
-class _FakeAudioPlayer implements AudioPlayer {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
