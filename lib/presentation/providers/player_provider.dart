@@ -124,14 +124,33 @@ class PlayerStateNotifier extends StateNotifier<PlayerState?> {
 
   void _init() {
     _stateSubscription = audioService.playerStateStream.listen((audioState) {
+      final positionSeconds = audioState.position.inSeconds;
+      final durationSeconds = audioState.duration.inSeconds;
+
+      // Auto-mark as played if >= 90% threshold
+      _autoMarkAsPlayed(positionSeconds, durationSeconds);
+
       state = PlayerState(
         episodeId: audioState.episodeId ?? 0,
         status: _mapStatus(audioState.status),
-        position: audioState.position.inSeconds,
-        duration: audioState.duration.inSeconds,
+        position: positionSeconds,
+        duration: durationSeconds,
         speed: audioState.speed,
       );
     });
+  }
+
+  /// Automatically marks episode as played when >= 90% threshold is reached.
+  Future<void> _autoMarkAsPlayed(int positionSeconds, int durationSeconds) async {
+    final episodeId = state?.episodeId;
+    if (episodeId == null || episodeId == 0) return;
+    if (durationSeconds <= 0) return;
+    if (MarkAsPlayed.isThresholdMet(
+      positionSeconds: positionSeconds,
+      durationSeconds: durationSeconds,
+    )) {
+      await episodeRepository.markAsPlayed(episodeId, positionSeconds);
+    }
   }
 
   @override

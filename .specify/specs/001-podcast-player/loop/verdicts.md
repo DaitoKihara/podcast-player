@@ -1,80 +1,165 @@
-# Verdicts
+# Verdicts — Loop Phase 5: Episode Management
 
-## D1: AudioServiceで再生・一時停止・停止ができる
-- Status: fail
-- Evidence: `flutter test test/unit/` exits with code 1. 17 tests failed in audio_service_test.dart. The core issue: AudioService constructor calls `AudioPlayer()` which requires `WidgetsFlutterBinding.ensureInitialized()`. Tests do NOT call this, so `MethodChannel.setMethodCallHandler` throws a `Failed assertion: _binaryMessenger != null || BindingBase.debugBindingType() != null`. The try/catch around `AudioPlayer()` only catches `Exception`, but the error is an `AssertionError` (extends `Error`, not `Exception`), so it propagates uncaught. Additionally, `_FakeAudioPlayer` uses `noSuchMethod` returning `super.noSuchMethod(invocation)` which throws `NoSuchMethodError` — it does not satisfy the `AudioPlayer` interface in any meaningful way.
-- Issues:
-  - `AudioService()` constructor fails in unit test context because `AudioPlayer()` triggers platform channel initialization.
-  - try/catch catches `Exception` but `AssertionError` is an `Error` — not caught.
-  - `_FakeAudioPlayer.noSuchMethod` returns `super.noSuchMethod(invocation)` which always throws.
-  - Tests for `initial state is idle`, `isPlaying false`, `zero position`, `pause/resume/stop`, `play updates state`, `seek`, `skipForward`, `skipBackward`, `durationStream`, `playerStateStream`, `positionStream`, `play with title and artist` — ALL fail because AudioService cannot be constructed in test mode.
-  - The 9 tests that do pass (AudioPlayerState construction/copyWith/AudioStatus) don't depend on AudioService.
+**Checked by:** Independent Checker  
+**Date:** 2026-09-03  
+**Branch:** `feature/phase5-episode-management`
 
-## D2: PlayerScreenに再生コントロールが表示される
-- Status: fail
-- Evidence: PlayerScreen (lib/presentation/screens/player/player_screen.dart) correctly renders play/pause, skip forward (30s), skip backward (10s), seek slider, and speed selector. However, it depends on `playerStateProvider` and `audioServiceProvider` from Riverpod. The screen cannot function without these providers working. The screen itself is structurally correct, but it cannot be verified to work because AudioService fails in any context without Flutter binding.
-- Issues: Dependent on D1 (AudioService) and D6 (PlayerProvider). Since AudioService fails in test contexts, the screen cannot be tested/verified in isolation.
+---
 
-## D3: EpisodeRepositoryでエピソード管理ができる
-- Status: pass
-- Evidence: episode_repository_test.dart — 8 tests, ALL pass. getEpisodes, getNewEpisodes, markAsPlayed, toggleFavorite, updatePosition, getByGuid (found and missing) all work. Test uses `AppDatabase.forTest(NativeDatabase.memory())` which correctly bypasses the real database.
+## D1: 90%再生で自動的に既聴マーク — ⚠️ PARTIALLY PASS
 
-## D4: PlayEpisodeユースケースが動作する
-- Status: fail
-- Evidence: play_episode_test.dart — 2 tests, BOTH fail. Same root cause as D1: `AudioService()` constructor in setUp throws AssertionError (not caught). Even though the tests only check that `playEpisode(999)` throws when episode not found, the `AudioService()` constructor runs first in setUp and crashes before the test body executes.
-- Issues: Test depends on AudioService being constructible in test mode. The `PlayEpisode` default constructor also creates its own AudioService, so even without the explicit one in setUp, it would fail.
+### Evidence
 
-## D5: MiniPlayerが表示され再生状態が反映される
-- Status: fail
-- Evidence: MiniPlayer (lib/presentation/widgets/mini_player.dart) correctly watches `playerStateProvider` and `audioServiceProvider`, shows progress bar, position/duration, and play/pause button. However, it cannot be tested/verified because:
-  1. AudioService fails to initialize without Flutter binding.
-  2. It depends on `playerStateProvider` which depends on AudioService.
-  3. The widget only renders when `playerState != null && playerState.episodeId != 0`.
-- Issues: No unit tests exist for MiniPlayer. Widget testing would require AudioService initialization.
+**`lib/domain/usecases/mark_as_played.dart`** — ✅ PASS
+- 90% threshold logic present: `positionSeconds >= durationSeconds * 0.9`
+- Static helper `isThresholdMet()` with edge case handling (duration <= 0 returns false)
+- Correctly calls `markAsPlayed` when threshold met, `updatePosition` otherwise
 
-## D6: PlayerProviderで状態管理ができる
-- Status: unverifiable
-- Evidence: player_provider.dart defines `playerStateProvider` (StateNotifierProvider), `isPlayingProvider`, `positionProvider`, `durationProvider`, `speedProvider`, and action providers. The `PlayerStateNotifier` subscribes to `audioService.playerStateStream` and maps AudioPlayerState → PlayerState. Structurally correct but:
-  1. No unit tests exist for PlayerProvider.
-  2. AudioService fails in test context, so provider cannot be tested.
-  3. Uses `ref.watch(audioServiceProvider)` which constructs AudioService — fails.
-- Issues: No tests cover this. Cannot verify without Flutter binding or mocking.
+**`lib/presentation/providers/player_provider.dart`** — ⚠️ PARTIAL
+- `MarkAsPlayedAction` class exists (lines 256-276) ✅
+- `markAsPlayedProvider` exists (lines 95-100) ✅
+- **BUT:** `PlayerStateNotifier._init()` only listens to `audioService.playerStateStream` and updates local state. It does **NOT** automatically invoke `markAsPlayed` when playback ends or when position reaches 90%.
+- The contract requires: "PlayerProviderが再生終了時に自動的に判定して呼び出す" — this automatic triggering is **missing**.
 
-## D7: `flutter analyze` がエラーなし
-- Status: fail
-- Evidence: `flutter analyze` exits with code 1. Found 1 warning:
-  - `warning • The '!' will have no effect because the receiver can't be null. Try removing the '!' operator • lib/services/audio_service.dart:13:32 • unnecessary_non_null_assertion`
-  - At line 13: `_player = _playerOverride!;` — the `!` is unnecessary because `_playerOverride` is already non-null inside the `if (_playerOverride != null)` block.
-- Issues: Exit code 0 requires ZERO issues of ALL severities. Even 1 warning causes failure.
+**Unit tests** — ✅ PASS
+- `test/unit/mark_as_played_test.dart` exists with 5 test cases
+- Tests cover: duration=0, below 90%, exactly 90%, above 90%, 100%
+- All tests pass
 
-## D8: バックグラウンド再生が動作する
-- Status: pass
-- Evidence: AndroidManifest.xml contains:
-  - `<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>`
-  - `<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>`
-  - `<service android:name="com.ryanheise.audioservice.AudioService" android:foregroundServiceType="mediaPlayback" android:exported="true">` with MediaBrowserService intent-filter.
-  - `<receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver">` for media button events.
-  - These are the correct configurations for just_audio_background to enable background audio playback with media controls.
+### Verdict
+The 90% threshold logic is correctly implemented in the use case, but the **automatic invocation** from PlayerProvider is missing. The action is defined but never wired to playback completion events. This is a partial implementation.
+
+---
+
+## D2: お気に入りトグル — ⚠️ PARTIALLY PASS
+
+### Evidence
+
+**`ToggleFavoriteAction` in player_provider.dart** — ✅ PASS
+- Class exists (lines 279-287)
+- Delegates to `episodeRepository.toggleFavorite(episodeId)`
+- `toggleFavoriteProvider` defined (lines 103-107)
+
+**`EpisodeRepository.toggleFavorite()`** — ✅ PASS
+- Exists in `lib/data/repositories/episode_repository.dart` (lines 103-118)
+- Correctly flips `isFavorite` boolean
+- Throws `AppException` if episode not found
+
+**Unit tests** — ⚠️ PARTIAL
+- Contract requires: `test/unit/toggle_favorite_test.dart`
+- This file does **NOT exist**
+- However, `test/unit/episode_repository_test.dart` contains `toggleFavorite flips favorite status` test (lines 127-147) which passes
+- The contract explicitly lists `test/unit/toggle_favorite_test.dart` as a new file to create — this was not done
+
+### Verdict
+Functionality works correctly, but the dedicated unit test file specified in the contract is missing. The test exists in a different file.
+
+---
+
+## D3: 新着エピソード検出 — ✅ PASS
+
+### Evidence
+
+**`EpisodeRepository.getNewEpisodes()`** — ✅ PASS
+- Exists in `lib/data/repositories/episode_repository.dart` (lines 147-153)
+- Returns `Stream<List<Episode>>`
+- Filters by `isPlayed == false` for the given podcastId
+- Ordered by `publishDate` descending
+
+**NEW badge in EpisodeTile** — ✅ PASS
+- `lib/presentation/widgets/episode_tile.dart` lines 84-101
+- Shows "NEW" badge when `isNew && !isPlayed`
+- Styled with primary color background and bold white text
+
+**PodcastDetailScreen integration** — ✅ PASS
+- Uses `EpisodeList` widget which renders `EpisodeTile` for each episode
+- `isNew` is computed in `EpisodeList` (lines 151-155): `!episode.isPlayed && DateTime.now().difference(episode.publishDate).inDays < 7`
+
+### Verdict
+Fully implemented. The NEW badge is displayed through the EpisodeTile within the EpisodeList on the PodcastDetailScreen.
+
+---
+
+## D4: EpisodeTile ウィジェット — ✅ PASS
+
+### Evidence
+
+**File:** `lib/presentation/widgets/episode_tile.dart` (177 lines)
+
+| Requirement | Status | Location |
+|-------------|--------|----------|
+| Play indicator | ✅ | `_buildLeadingIcon()` lines 125-145: play_circle_filled (playing), check_circle (played), play_circle_outline (default) |
+| Favorite toggle | ✅ | IconButton lines 107-114: Icons.favorite / Icons.favorite_border with red color |
+| Long-press menu | ✅ | `onLongPress` → `_showContextMenu()` lines 147-176: bottom sheet with mark played/unplayed |
+| isNew state | ✅ | Parameter + NEW badge display lines 84-101 |
+| isPlayed state | ✅ | Parameter + greyed out / strikethrough text lines 72-75 |
+| isFavorite state | ✅ | Parameter + filled/outline heart icon lines 109-110 |
+
+### Verdict
+All required features are present and correctly implemented.
+
+---
+
+## D5: エピソード一覧フィルター — ✅ PASS
+
+### Evidence
+
+**File:** `lib/presentation/widgets/episode_list.dart` (252 lines)
+
+| Requirement | Status | Location |
+|-------------|--------|----------|
+| Filter: All | ✅ | `EpisodeFilter.all` + FilterChip line 173-177 |
+| Filter: Unread | ✅ | `EpisodeFilter.unread` + FilterChip line 179-184 |
+| Filter: Favorites | ✅ | `EpisodeFilter.favorites` + FilterChip line 186-191 |
+| Sort: Newest | ✅ | `EpisodeSort.newestFirst` + TextButton line 203-213 |
+| Sort: Oldest | ✅ | `EpisodeSort.oldestFirst` + TextButton line 214-224 |
+
+### Verdict
+All filter and sort options are implemented and functional.
+
+---
+
+## D6: flutter analyze — ✅ PASS
+
+### Evidence
+
+```
+$ flutter analyze
+No issues found! (ran in 0.6s)
+Exit code: 0
+```
+
+```
+$ flutter test
+All tests passed!
+Exit code: 0
+Total: 52 tests
+```
+
+### Verdict
+Clean analyze, all tests pass.
+
+---
 
 ## Summary
-- Passed: 2/8
-- Failed: 5/8
-- Unverifiable: 1/8
 
-### Root Cause Analysis
-The fundamental design flaw: `AudioService` tries to construct a real `AudioPlayer()` in its constructor, which requires a platform channel (binary messenger). This works on a device but fails in any test context. The try/catch only catches `Exception`, but platform channel initialization throws `AssertionError` (an `Error`), so the fallback `_FakeAudioPlayer` path is unreachable. Even if it were reached, `_FakeAudioPlayer.noSuchMethod` returns `super.noSuchMethod(invocation)` which always throws `NoSuchMethodError`, making it non-functional.
+| Criterion | Verdict | Notes |
+|-----------|---------|-------|
+| D1 | ⚠️ PARTIAL | Auto-trigger on playback end missing |
+| D2 | ⚠️ PARTIAL | Dedicated test file missing |
+| D3 | ✅ PASS | Fully implemented |
+| D4 | ✅ PASS | All features present |
+| D5 | ✅ PASS | All filters/sorts present |
+| D6 | ✅ PASS | Clean analyze + all tests pass |
 
-### Files Examined
-- lib/services/audio_service.dart
-- lib/services/notification_service.dart
-- lib/data/repositories/episode_repository.dart
-- lib/domain/usecases/play_episode.dart
-- lib/presentation/providers/player_provider.dart
-- lib/presentation/widgets/mini_player.dart
-- lib/presentation/screens/player/player_screen.dart
-- lib/domain/entities/player_state.dart
-- lib/data/datasources/local/app_database.dart
-- android/app/src/main/AndroidManifest.xml
-- test/unit/audio_service_test.dart
-- test/unit/play_episode_test.dart
-- test/unit/episode_repository_test.dart
+### Issues Found
+
+1. **D1 — Missing automatic invocation:** `PlayerStateNotifier` does not call `markAsPlayed` when playback completes or reaches 90%. The action/provider exists but is never triggered automatically. This is the contract's primary requirement.
+
+2. **D2 — Missing test file:** `test/unit/toggle_favorite_test.dart` was not created as specified in the contract. The test exists in `episode_repository_test.dart` instead.
+
+### Recommendation
+
+The loop should **not** be marked as fully done. The maker needs to:
+1. Wire `markAsPlayed` invocation into `PlayerStateNotifier` (e.g., listen for position/duration changes and auto-mark at 90%)
+2. Create the dedicated `test/unit/toggle_favorite_test.dart` file
