@@ -28,8 +28,8 @@ dependencies:
   json_serializable: ^6.9.0
 
   # Local Database
-  isar: ^3.1.0
-  isar_flutter_libs: ^3.1.0
+  drift: ^2.27.0
+  drift_flutter: ^0.3.1
   path_provider: ^2.1.5
 
   # Audio Playback
@@ -59,6 +59,7 @@ dev_dependencies:
 
   # Code Generation
   build_runner: ^2.4.14
+  drift_dev: ^2.27.0
 
 flutter:
   uses-material-design: true
