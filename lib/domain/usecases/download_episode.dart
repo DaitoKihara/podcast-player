@@ -35,12 +35,11 @@ class DownloadEpisode {
     required int episodeId,
     void Function(double progress)? onProgress,
   }) async {
-    // Get the episode
-    final episodes = await _episodeRepository.getEpisodes(episodeId);
-    if (episodes.isEmpty) {
+    // Get the episode by ID
+    final episode = await _episodeRepository.getEpisode(episodeId);
+    if (episode == null) {
       throw AppException.storage(message: 'Episode not found');
     }
-    final episode = episodes.first;
 
     // Check if already downloaded
     if (episode.localPath != null) {

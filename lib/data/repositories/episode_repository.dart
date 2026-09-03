@@ -135,6 +135,14 @@ class EpisodeRepository {
     return query.getSingleOrNull();
   }
 
+  /// Gets an episode by its ID.
+  Future<Episode?> getEpisode(int episodeId) async {
+    final db = _database;
+    final query = db.select(db.episodes)
+      ..where((t) => t.id.equals(episodeId));
+    return query.getSingleOrNull();
+  }
+
   /// Gets downloaded episodes.
   Stream<List<Episode>> get downloadedEpisodes {
     final db = _database;
