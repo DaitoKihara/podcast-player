@@ -1,7 +1,7 @@
 # Checker Verdicts
 
 Adversarial verification of D1-D7 against primary sources.
-Checker: independent session (adversarial grader) — FOURTH PASS
+Checker: independent session (adversarial grader) — FIFTH PASS
 Date: 2026-09-03
 
 ---
@@ -120,13 +120,15 @@ Date: 2026-09-03
 - Subscribe/Unsubscribe button — PRESENT
 - `_repository` field — PRESENT
 
-### Adversarial findings
-1. **Subscribe path is still a stub.** Throws `UnimplementedError`.
-2. Only unsubscribe works.
+### Fifth pass findings
+1. **Subscribe path FIXED.** `_toggleSubscription` now calls `_repository.subscribeById(widget.podcastId)` (line 48) instead of throwing `UnimplementedError`.
+2. **`subscribeById` method exists in repository.** `podcast_repository.dart` lines 62-67: queries the podcast by ID via `db.select(db.podcasts)..where((t) => t.id.equals(podcastId))`, then delegates to `subscribe(podcast)` which inserts into both `podcasts` and `subscriptions` tables.
+3. **Unsubscribe path unchanged.** Still calls `_repository.unsubscribe(widget.podcastId)` (line 46).
+4. **Error handling present.** `on Exception catch (e)` shows SnackBar with error message.
 
-### Verdict: **FAIL**
+### Verdict: **PASS** ✅
 **Confidence:** High
-**Reason:** Subscribe action throws `UnimplementedError`. Toggle is not fully functional.
+**Reason:** Subscribe action now calls `subscribeById` which is fully implemented in the repository. Toggle is fully functional — both subscribe and unsubscribe paths work.
 
 ---
 
@@ -192,25 +194,34 @@ Date: 2026-09-03
 | D2 | FAIL | High | First test requires live network |
 | D3 | FAIL | Certain | `Binding not initialized` — needs platform channels |
 | D4 | PASS | High | Search UI complete (unchanged) |
-| D5 | FAIL | High | Subscribe path throws `UnimplementedError` |
+| D5 | **PASS** | High | Subscribe toggle fully functional via `subscribeById` |
 | D6 | PASS | High | Subscription list UI complete (unchanged) |
 | D7 | FAIL | Certain | `flutter analyze` exit code is 1 (21 info lints) |
 
-**Overall: 3 PASS, 4 FAIL**
+**Overall: 4 PASS, 3 FAIL**
 
-### Maker progress since 3rd pass
-- **D1: FIXED ✅.** `response.data` cast bug resolved with type checking (`is String` → `jsonDecode`). Tests pass with exit code 0.
+### Maker progress since 4th pass
+- **D5: FIXED ✅.** `_toggleSubscription` now calls `_repository.subscribeById(widget.podcastId)` instead of throwing `UnimplementedError`. The `subscribeById` method is fully implemented in the repository.
+- D1: No change. Still PASS.
 - D2: No change. First test still requires network.
 - D3: No change. Still fails with `Binding not initialized`.
 - D7: No change. 21 info-level lints remain.
 
 ### Key observations
-The D1 fix is correct and well-implemented:
+The D5 fix is correct and well-implemented:
 ```dart
-final data = response.data is String
-    ? jsonDecode(response.data as String) as Map<String, dynamic>
-    : response.data as Map<String, dynamic>;
+// podcast_detail_screen.dart line 48
+await _repository.subscribeById(widget.podcastId);
 ```
-This is the idiomatic Dio pattern for handling response data that may arrive as either a parsed JSON object or a raw string.
+```dart
+// podcast_repository.dart lines 62-67
+Future<void> subscribeById(int podcastId) async {
+  final db = _database;
+  final query = db.select(db.podcasts)..where((t) => t.id.equals(podcastId));
+  final podcast = await query.getSingle();
+  await subscribe(podcast);
+}
+```
+The `subscribeById` method queries the podcast by ID from the local database, then delegates to `subscribe(podcast)` which inserts into both `podcasts` and `subscriptions` tables. This is a clean, idiomatic implementation.
 
-D1 is now the first criterion to transition from FAIL → PASS in this loop.
+D5 is now the second criterion to transition from FAIL → PASS in this loop.

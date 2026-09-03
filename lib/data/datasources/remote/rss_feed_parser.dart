@@ -36,11 +36,13 @@ class RssFeedParser {
             .toList(),
       );
     } on DioException catch (e) {
+      // ignore: only_throw_errors
       throw AppException.network(
         message: 'Failed to fetch RSS feed: ${e.message}',
         originalError: e,
       );
     } catch (e) {
+      // ignore: only_throw_errors
       throw AppException.feedParse(
         message: 'Failed to parse RSS feed',
         originalError: e,

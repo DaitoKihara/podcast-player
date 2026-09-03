@@ -32,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _subscribedPodcasts = podcasts;
         _isLoading = false;
       });
-    } catch (e) {
+    } on Exception catch (e) {
       setState(() {
         _isLoading = false;
       });

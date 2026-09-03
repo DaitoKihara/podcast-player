@@ -76,12 +76,13 @@ class _PodcastDetailScreenState extends State<PodcastDetailScreen> {
           children: [
             Text('Podcast ID: ${widget.podcastId}'),
             const SizedBox(height: 16),
-            _isLoading
-                ? const CircularProgressIndicator()
-                : ElevatedButton(
-                    onPressed: _toggleSubscription,
-                    child: Text(_isSubscribed ? 'Unsubscribe' : 'Subscribe'),
-                  ),
+            if (_isLoading)
+              const CircularProgressIndicator()
+            else
+              ElevatedButton(
+                onPressed: _toggleSubscription,
+                child: Text(_isSubscribed ? 'Unsubscribe' : 'Subscribe'),
+              ),
           ],
         ),
       ),

@@ -62,11 +62,11 @@ class UserPreferences extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get skipForwardInterval => integer().withDefault(const Constant(30))();
   IntColumn get skipBackwardInterval => integer().withDefault(const Constant(10))();
-  RealColumn get defaultPlaybackSpeed => real().withDefault(const Constant(1.0))();
+  RealColumn get defaultPlaybackSpeed => real().withDefault(const Constant(1))();
   BoolColumn get downloadOnlyOnWifi => boolean().withDefault(const Constant(true))();
   BoolColumn get autoDownload => boolean().withDefault(const Constant(false))();
   BoolColumn get darkMode => boolean().withDefault(const Constant(false))();
-  RealColumn get fontSize => real().withDefault(const Constant(1.0))();
+  RealColumn get fontSize => real().withDefault(const Constant(1))();
   BoolColumn get syncEnabled => boolean().withDefault(const Constant(false))();
 
   @override
@@ -103,14 +103,12 @@ class DownloadRecords extends Table {
 /// Manages the Drift database instance.
 @DriftDatabase(tables: [Podcasts, Episodes, Subscriptions, UserPreferences, Bookmarks, DownloadRecords])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase._(QueryExecutor executor) : super(executor);
+  AppDatabase._(super.executor);
 
   static final AppDatabase instance = AppDatabase._(_openConnection());
 
   /// Creates an AppDatabase for testing with an in-memory database.
-  factory AppDatabase.forTest(QueryExecutor executor) {
-    return AppDatabase._(executor);
-  }
+  factory AppDatabase.forTest(QueryExecutor executor) => AppDatabase._(executor);
 
   @override
   int get schemaVersion => 1;
