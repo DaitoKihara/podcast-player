@@ -40,5 +40,5 @@ Statuses: pending → maker-ready → checker-pass | checker-fail → human-sign
 
 ## State
 - Phase: running
-- Last updated: 2026-09-03 (5th checker pass)
-- Iterations run: 1 (5th pass: D5 subscribe toggle fixed — now 4 PASS, 3 FAIL)
+- Last updated: 2026-09-03 (6th checker pass)
+- Iterations run: 1 (6th pass: D2 test improved but still fails; D3 has new compilation errors; D7 worse with 3 errors)

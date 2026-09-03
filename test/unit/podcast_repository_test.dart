@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:matcher/matcher.dart' as matcher;
 import 'package:podcast_player/data/datasources/local/app_database.dart';
 import 'package:podcast_player/data/repositories/podcast_repository.dart';
 import 'package:podcast_player/domain/entities/podcast_search_query.dart';
@@ -10,7 +11,7 @@ void main() {
   late PodcastRepository repository;
 
   setUp(() {
-    database = AppDatabase.forTest(InMemoryDatabase());
+    database = AppDatabase.forTest(NativeDatabase.memory());
     repository = PodcastRepository(database: database);
   });
 
@@ -44,7 +45,7 @@ void main() {
     await repository.subscribe(podcast);
 
     final saved = await repository.getById(podcast.id);
-    expect(saved, isNotNull);
+    expect(saved, matcher.isNotNull);
     expect(saved!.title, equals('Test Podcast'));
   });
 
@@ -68,6 +69,6 @@ void main() {
     await repository.unsubscribe(podcast.id);
 
     final saved = await repository.getById(podcast.id);
-    expect(saved, isNull);
+    expect(saved, matcher.isNull);
   });
 }

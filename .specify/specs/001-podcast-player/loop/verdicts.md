@@ -1,7 +1,7 @@
 # Checker Verdicts
 
 Adversarial verification of D1-D7 against primary sources.
-Checker: independent session (adversarial grader) — FIFTH PASS
+Checker: independent session (adversarial grader) — SIXTH PASS
 Date: 2026-09-03
 
 ---
@@ -51,14 +51,15 @@ Date: 2026-09-03
 - RFC 822 date parsing fix: Uses `DateFormat('EEE, dd MMM yyyy HH:mm:ss', 'en_US')` — PRESENT
 - Test file: `test/unit/rss_feed_parser_test.dart` — EXISTS
 
-### Adversarial findings
-1. **Exception type test: FIXED (previous pass).** Uses `throwsA(isA<AppException>())`.
-2. **First test requires network access.** The test calls a live RSS feed URL, making it an integration test.
-3. **`flutter test` result: FAILED.** First test fails (network/integration issue).
+### Sixth pass findings
+1. **Test FAILS with type mismatch.** Test expects `throwsA(isA<Exception>())` but actual thrown type is `FeedParseException` (an `AppException` sealed class). `AppException` does NOT implement `Exception` (it's a freezed sealed class extending `Object`), so `isA<Exception>()` returns false.
+2. **Parser has a cast bug.** The actual error triggering the failure is: `type '_Map<String, dynamic>' is not a subtype of type 'String' in type cast` at `rss_feed_parser.dart:18`. The line `RssFeed.parse(response.data as String)` assumes response.data is always a String, but Dio returns a `Map<String, dynamic>` for error responses (e.g., from invalid URLs). This is a genuine parser bug — the cast should be conditional like in `itunes_api_client.dart`.
+3. **`flutter test` exit code: 1.** Test fails, so overall test suite fails.
+4. **Test is now a proper unit test (no network).** The test uses an invalid URL, so it doesn't require network access — this is an improvement. But the test itself has the wrong exception type matcher.
 
 ### Verdict: **FAIL**
 **Confidence:** High
-**Reason:** The first test still requires live network access. It fails in this environment, so `flutter test` does not pass.
+**Reason:** Test fails for two reasons: (1) `AppException` doesn't implement `Exception`, so `isA<Exception>()` matcher fails; (2) parser has a cast bug where `response.data as String` throws for non-String responses. Both issues need fixing for `flutter test` to pass.
 
 ---
 
@@ -75,13 +76,17 @@ Date: 2026-09-03
 - Getter `subscribedPodcasts` — PRESENT
 - Test file: `test/unit/podcast_repository_test.dart` — EXISTS
 
-### Adversarial findings
-1. **Runtime failure: `Binding has not yet been initialized`.** Tests fail because `AppDatabase.instance` calls `drift_flutter` which requires platform channels.
-2. **Tests are integration tests.** Require a real Drift database.
+### Sixth pass findings
+1. **Three compilation errors in test file:**
+   - **`undefined_function: InMemoryDatabase`** (line 13): `AppDatabase.forTest(InMemoryDatabase())` — `InMemoryDatabase` from `package:drift/native.dart` is not usable as a constructor in this context. The test passes `InMemoryDatabase()` but `AppDatabase.forTest` expects a `QueryExecutor`. The correct approach is to use `VmDatabase.inMemory()` or similar Drift test utility.
+   - **`ambiguous_import: isNotNull`** (line 47): `isNotNull` is imported from both `package:drift/.../query_builder.dart` (SQL operator) and `package:matcher/src/core_matchers.dart` (test matcher). Conflict.
+   - **`ambiguous_import: isNull`** (line 71): Same conflict for `isNull`.
+2. **Test file does not compile.** `flutter test` cannot load the test file.
+3. **`flutter test` exit code: 1.**
 
 ### Verdict: **FAIL**
 **Confidence:** Certain
-**Reason:** Tests fail at runtime — `AppDatabase.instance` requires platform channels that aren't available in unit tests.
+**Reason:** Test file has 3 compilation errors: wrong `InMemoryDatabase` usage, and ambiguous imports for `isNotNull`/`isNull`. The test cannot even be loaded by `flutter test`.
 
 ---
 
@@ -162,27 +167,31 @@ Date: 2026-09-03
 ### Primary source verified
 - Command run: `cd /home/daito/podcast-player && flutter analyze`
 - Exit code: **1** (not 0)
-- Issues found: **21** (all info-level, no errors)
-  - `prefer_int_literals` (2)
-  - `use_super_parameters` (1)
-  - `sort_constructors_first` (2)
-  - `only_throw_errors` (2)
-  - `directives_ordering` (1)
-  - `always_put_control_body_on_new_line` (2)
-  - `avoid_catches_without_on_clauses` (2)
-  - `unnecessary_underscores` (4)
-  - `prefer_if_elements_to_conditional_expressions` (1)
-  - `avoid_redundant_argument_values` (3)
-  - `sort directive sections` (1)
+- Issues found: **17** (3 errors, 14 info-level)
+
+### Sixth pass breakdown
+**Errors (3):**
+- `test/unit/podcast_repository_test.dart:13:36` — `undefined_function: InMemoryDatabase`
+- `test/unit/podcast_repository_test.dart:47:19` — `ambiguous_import: isNotNull`
+- `test/unit/podcast_repository_test.dart:71:19` — `ambiguous_import: isNull`
+
+**Info-level lints (14):**
+- `sort_constructors_first` (2) — `app_database.dart:111`, `itunes_api_client.dart:110`
+- `directives_ordering` (1) — `podcast_repository.dart:5`
+- `always_put_control_body_on_new_line` (2) — `podcast_repository.dart:45`, `home_screen.dart:35`
+- `unused_catch_clause` (1, warning) — `home_screen.dart:35`
+- `unnecessary_underscores` (4) — `home_screen.dart:65`, `search_screen.dart:107`
+- `avoid_redundant_argument_values` (3) — `search_screen.dart:32,33`, `itunes_api_client_test.dart:16`, `podcast_repository_test.dart:23`
 
 ### Adversarial findings
 1. The criterion requires exit code 0. Actual is 1.
-2. All 21 issues are info-level lints (no errors or warnings).
-3. Test compilation errors from previous passes are FIXED.
+2. 3 errors are from D3 test file compilation (inherited from D3 issues).
+3. 14 info-level lints remain from production code.
+4. **D2 test file has no analyze errors** (it compiles, just fails at runtime).
 
 ### Verdict: **FAIL**
 **Confidence:** Certain
-**Reason:** `flutter analyze` returned exit code 1 with 21 info-level lints. Criterion requires exit code 0.
+**Reason:** `flutter analyze` returned exit code 1 with 3 errors and 14 info-level lints. Criterion requires exit code 0.
 
 ---
 
@@ -191,37 +200,21 @@ Date: 2026-09-03
 | Criterion | Verdict | Confidence | Key Issue |
 |-----------|---------|------------|-----------|
 | D1 | **PASS** | High | Cast bug fixed; tests pass with exit code 0 |
-| D2 | FAIL | High | First test requires live network |
-| D3 | FAIL | Certain | `Binding not initialized` — needs platform channels |
+| D2 | FAIL | High | Test fails: `AppException` is not `Exception`; parser has cast bug |
+| D3 | FAIL | Certain | 3 compilation errors: `InMemoryDatabase`, ambiguous `isNotNull`/`isNull` |
 | D4 | PASS | High | Search UI complete (unchanged) |
 | D5 | **PASS** | High | Subscribe toggle fully functional via `subscribeById` |
 | D6 | PASS | High | Subscription list UI complete (unchanged) |
-| D7 | FAIL | Certain | `flutter analyze` exit code is 1 (21 info lints) |
+| D7 | FAIL | Certain | `flutter analyze` exit code is 1 (3 errors, 14 info lints) |
 
 **Overall: 4 PASS, 3 FAIL**
 
-### Maker progress since 4th pass
-- **D5: FIXED ✅.** `_toggleSubscription` now calls `_repository.subscribeById(widget.podcastId)` instead of throwing `UnimplementedError`. The `subscribeById` method is fully implemented in the repository.
-- D1: No change. Still PASS.
-- D2: No change. First test still requires network.
-- D3: No change. Still fails with `Binding not initialized`.
-- D7: No change. 21 info-level lints remain.
+### Sixth pass changes
+- **D2: No change.** Test now uses invalid URL (no network needed) — improvement. But `isA<Exception>()` matcher is wrong for `AppException`, and parser has a cast bug on `response.data as String`. Still FAIL.
+- **D3: New compilation errors.** The rewritten test file has 3 compilation errors: wrong `InMemoryDatabase` usage and ambiguous imports. Still FAIL.
+- **D7: Worse.** Now 3 errors (up from 0) due to D3 test compilation failures, plus 14 info lints (down from 21). Still FAIL.
 
 ### Key observations
-The D5 fix is correct and well-implemented:
-```dart
-// podcast_detail_screen.dart line 48
-await _repository.subscribeById(widget.podcastId);
-```
-```dart
-// podcast_repository.dart lines 62-67
-Future<void> subscribeById(int podcastId) async {
-  final db = _database;
-  final query = db.select(db.podcasts)..where((t) => t.id.equals(podcastId));
-  final podcast = await query.getSingle();
-  await subscribe(podcast);
-}
-```
-The `subscribeById` method queries the podcast by ID from the local database, then delegates to `subscribe(podcast)` which inserts into both `podcasts` and `subscriptions` tables. This is a clean, idiomatic implementation.
-
-D5 is now the second criterion to transition from FAIL → PASS in this loop.
+1. **D2 parser bug:** `rss_feed_parser.dart:18` does `RssFeed.parse(response.data as String)` which crashes when Dio returns a non-String response (e.g., error page as Map). The `itunes_api_client.dart` handles this correctly with a conditional cast — the same fix should be applied to the parser.
+2. **D3 import conflict:** The `isNotNull`/`isNull` matchers from `flutter_test` conflict with Drift's SQL operators. Fix: use `isA<T>().having(...)` or import `package:matcher/matcher.dart` with a prefix.
+3. **D3 InMemoryDatabase:** `package:drift/native.dart`'s `InMemoryDatabase` is not available in unit test context. Use `VmDatabase.inMemory()` from `package:drift/vm.dart` or `driftDatabase(inMemory: true)` instead.
