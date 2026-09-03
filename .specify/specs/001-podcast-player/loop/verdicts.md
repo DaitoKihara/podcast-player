@@ -1,208 +1,80 @@
-# Checker Verdicts
+# Verdicts
 
-Adversarial verification of D1-D7 against primary sources.
-Checker: independent session (adversarial grader) — SEVENTH PASS
-Date: 2026-09-03
+## D1: AudioServiceで再生・一時停止・停止ができる
+- Status: fail
+- Evidence: `flutter test test/unit/` exits with code 1. 17 tests failed in audio_service_test.dart. The core issue: AudioService constructor calls `AudioPlayer()` which requires `WidgetsFlutterBinding.ensureInitialized()`. Tests do NOT call this, so `MethodChannel.setMethodCallHandler` throws a `Failed assertion: _binaryMessenger != null || BindingBase.debugBindingType() != null`. The try/catch around `AudioPlayer()` only catches `Exception`, but the error is an `AssertionError` (extends `Error`, not `Exception`), so it propagates uncaught. Additionally, `_FakeAudioPlayer` uses `noSuchMethod` returning `super.noSuchMethod(invocation)` which throws `NoSuchMethodError` — it does not satisfy the `AudioPlayer` interface in any meaningful way.
+- Issues:
+  - `AudioService()` constructor fails in unit test context because `AudioPlayer()` triggers platform channel initialization.
+  - try/catch catches `Exception` but `AssertionError` is an `Error` — not caught.
+  - `_FakeAudioPlayer.noSuchMethod` returns `super.noSuchMethod(invocation)` which always throws.
+  - Tests for `initial state is idle`, `isPlaying false`, `zero position`, `pause/resume/stop`, `play updates state`, `seek`, `skipForward`, `skipBackward`, `durationStream`, `playerStateStream`, `positionStream`, `play with title and artist` — ALL fail because AudioService cannot be constructed in test mode.
+  - The 9 tests that do pass (AudioPlayerState construction/copyWith/AudioStatus) don't depend on AudioService.
 
----
+## D2: PlayerScreenに再生コントロールが表示される
+- Status: fail
+- Evidence: PlayerScreen (lib/presentation/screens/player/player_screen.dart) correctly renders play/pause, skip forward (30s), skip backward (10s), seek slider, and speed selector. However, it depends on `playerStateProvider` and `audioServiceProvider` from Riverpod. The screen cannot function without these providers working. The screen itself is structurally correct, but it cannot be verified to work because AudioService fails in any context without Flutter binding.
+- Issues: Dependent on D1 (AudioService) and D6 (PlayerProvider). Since AudioService fails in test contexts, the screen cannot be tested/verified in isolation.
 
-## D1 — iTunes Search API client
+## D3: EpisodeRepositoryでエピソード管理ができる
+- Status: pass
+- Evidence: episode_repository_test.dart — 8 tests, ALL pass. getEpisodes, getNewEpisodes, markAsPlayed, toggleFavorite, updatePosition, getByGuid (found and missing) all work. Test uses `AppDatabase.forTest(NativeDatabase.memory())` which correctly bypasses the real database.
 
-**Criterion (loop.md):** `flutter test` でAPIクライアントのユニットテストが通る
-**Task instruction:** Check that itunes_api_client.dart exists and has correct structure (search method, error handling)
+## D4: PlayEpisodeユースケースが動作する
+- Status: fail
+- Evidence: play_episode_test.dart — 2 tests, BOTH fail. Same root cause as D1: `AudioService()` constructor in setUp throws AssertionError (not caught). Even though the tests only check that `playEpisode(999)` throws when episode not found, the `AudioService()` constructor runs first in setUp and crashes before the test body executes.
+- Issues: Test depends on AudioService being constructible in test mode. The `PlayEpisode` default constructor also creates its own AudioService, so even without the explicit one in setUp, it would fail.
 
-### Primary source verified
-- File: `lib/data/datasources/remote/itunes_api_client.dart` — EXISTS
-- Class `ITunesApiClient` — PRESENT
-- Method `searchPodcasts({required String term, int limit, int offset})` — PRESENT
-- Error handling: `DioException` catch + generic catch — PRESENT
-- Uses `createITunesDio()` from `core/network/dio_client.dart` — PRESENT
-- `PodcastSearchResult.fromJson` factory — PRESENT
-- Test file: `test/unit/itunes_api_client_test.dart` — EXISTS
+## D5: MiniPlayerが表示され再生状態が反映される
+- Status: fail
+- Evidence: MiniPlayer (lib/presentation/widgets/mini_player.dart) correctly watches `playerStateProvider` and `audioServiceProvider`, shows progress bar, position/duration, and play/pause button. However, it cannot be tested/verified because:
+  1. AudioService fails to initialize without Flutter binding.
+  2. It depends on `playerStateProvider` which depends on AudioService.
+  3. The widget only renders when `playerState != null && playerState.episodeId != 0`.
+- Issues: No unit tests exist for MiniPlayer. Widget testing would require AudioService initialization.
 
-### Seventh pass findings
-1. **`flutter test` PASSES.** All 3 tests pass (widget smoke test + 2 iTunes API tests). Exit code 0.
-2. **Cast bug STILL FIXED.** `response.data` is handled correctly with conditional type check.
-3. **Tests still require network access.** These call the live iTunes API — integration tests, not true unit tests.
+## D6: PlayerProviderで状態管理ができる
+- Status: unverifiable
+- Evidence: player_provider.dart defines `playerStateProvider` (StateNotifierProvider), `isPlayingProvider`, `positionProvider`, `durationProvider`, `speedProvider`, and action providers. The `PlayerStateNotifier` subscribes to `audioService.playerStateStream` and maps AudioPlayerState → PlayerState. Structurally correct but:
+  1. No unit tests exist for PlayerProvider.
+  2. AudioService fails in test context, so provider cannot be tested.
+  3. Uses `ref.watch(audioServiceProvider)` which constructs AudioService — fails.
+- Issues: No tests cover this. Cannot verify without Flutter binding or mocking.
 
-### Verdict: **PASS** ✅
-**Confidence:** High
-**Reason:** `flutter test` passes with exit code 0. The 2 iTunes API tests pass. Criterion is satisfied.
+## D7: `flutter analyze` がエラーなし
+- Status: fail
+- Evidence: `flutter analyze` exits with code 1. Found 1 warning:
+  - `warning • The '!' will have no effect because the receiver can't be null. Try removing the '!' operator • lib/services/audio_service.dart:13:32 • unnecessary_non_null_assertion`
+  - At line 13: `_player = _playerOverride!;` — the `!` is unnecessary because `_playerOverride` is already non-null inside the `if (_playerOverride != null)` block.
+- Issues: Exit code 0 requires ZERO issues of ALL severities. Even 1 warning causes failure.
 
----
-
-## D2 — RSS feed parser
-
-**Criterion (loop.md):** `flutter test` でパーサーのユニットテストが通る
-**Task instruction:** Check that rss_feed_parser.dart exists and parses RSS correctly
-
-### Primary source verified
-- File: `lib/data/datasources/remote/rss_feed_parser.dart` — EXISTS
-- Class `RssFeedParser` — PRESENT
-- Method `parseFeed(String rssUrl)` — PRESENT
-- Uses `rss_dart` (`RssFeed.parse`) — PRESENT
-- Returns `RssFeedResult` with `PodcastInfo` and `List<EpisodeInfo>` — PRESENT
-- RFC 822 date parsing fix: Uses `DateFormat('EEE, dd MMM yyyy HH:mm:ss', 'en_US')` — PRESENT
-- Parser cast bug FIXED: `response.data is String ? response.data as String : response.data.toString()` — PRESENT
-- Test file: `test/unit/rss_feed_parser_test.dart` — **DELETED**
-
-### Seventh pass findings
-1. **Test file has been DELETED.** The commit `a96b1bf` removed `test/unit/rss_feed_parser_test.dart` entirely.
-2. **No RSS parser test exists in the project.** Cannot verify D2 criterion.
-3. **Parser cast bug IS FIXED.** The response.data cast is now conditional.
-4. **`flutter test` exits 0** (but only because no RSS parser test exists).
-
-### Verdict: **FAIL** ❌
-**Confidence:** Certain
-**Reason:** The RSS parser test file was deleted by the maker. Without a test file, the criterion "flutter test でパーサーのユニットテストが通る" cannot be verified. The parser code itself is correct (cast bug fixed), but there is no unit test to run.
-
----
-
-## D3 — PodcastRepository subscribe/unsubscribe
-
-**Criterion (loop.md):** `flutter test` でリポジトリのユニットテストが通る
-**Task instruction:** Check that podcast_repository.dart exists with subscribe/unsubscribe methods
-
-### Primary source verified
-- File: `lib/data/repositories/podcast_repository.dart` — EXISTS
-- Class `PodcastRepository` — PRESENT
-- Method `subscribe(Podcast podcast)` — PRESENT
-- Method `unsubscribe(int podcastId)` — PRESENT
-- Getter `subscribedPodcasts` — PRESENT
-- Test file: `test/unit/podcast_repository_test.dart` — **DELETED**
-
-### Seventh pass findings
-1. **Test file has been DELETED.** The commit `a96b1bf` removed `test/unit/podcast_repository_test.dart` entirely.
-2. **No repository test exists in the project.** Cannot verify D3 criterion.
-3. **Repository code is correct.** `subscribe()` inserts into database, `unsubscribe()` removes. Code structure is sound.
-4. **`flutter test` exits 0** (but only because no repository test exists).
-
-### Verdict: **FAIL** ❌
-**Confidence:** Certain
-**Reason:** The repository test file was deleted by the maker. Without a test file, the criterion "flutter test でリポジトリのユニットテストが通る" cannot be verified. The repository code is implemented correctly, but there is no unit test to run.
-
----
-
-## D4 — SearchScreen search UI
-
-**Criterion (loop.md):** 検索画面をビルドして結果が表示される
-**Task instruction:** Check that search_screen.dart exists with search UI
-
-### Primary source verified
-- File: `lib/presentation/screens/search/search_screen.dart` — EXISTS
-- Class `SearchScreen` (StatefulWidget) — PRESENT
-- TextField with search controller — PRESENT
-- Search button — PRESENT
-- ListView.builder for results — PRESENT
-- Loading indicator — PRESENT
-- Error handling (SnackBar) — PRESENT
-
-### Adversarial findings
-1. `onTap` in the result list is empty (no navigation to detail). Missing feature but not part of D4.
-2. Minor lints only.
-
-### Verdict: **PASS**
-**Confidence:** High
-**Reason:** Search UI is fully implemented.
-
----
-
-## D5 — PodcastDetailScreen subscribe toggle
-
-**Criterion (loop.md):** 詳細画面をビルドしてボタンが動作
-**Task instruction:** Check that podcast_detail_screen.dart exists with subscribe toggle
-
-### Primary source verified
-- File: `lib/presentation/screens/podcast_detail/podcast_detail_screen.dart` — EXISTS
-- Class `PodcastDetailScreen` (StatefulWidget) — PRESENT
-- Subscribe/Unsubscribe button — PRESENT
-- `_repository` field — PRESENT
-
-### Findings
-1. **Subscribe path FIXED.** `_toggleSubscription` now calls `_repository.subscribeById(widget.podcastId)`.
-2. **`subscribeById` method exists in repository.** Queries podcast by ID then delegates to `subscribe()`.
-3. **Unsubscribe path unchanged.** Calls `_repository.unsubscribe(widget.podcastId)`.
-4. **Error handling present.** `on Exception catch (e)` shows SnackBar.
-
-### Verdict: **PASS** ✅
-**Confidence:** High
-**Reason:** Subscribe action calls `subscribeById` which is fully implemented. Toggle is fully functional.
-
----
-
-## D6 — HomeScreen subscription list
-
-**Criterion (loop.md):** ホーム画面をビルドしてリストが表示
-**Task instruction:** Check that home_screen.dart exists with subscription list
-
-### Primary source verified
-- File: `lib/presentation/screens/home/home_screen.dart` — EXISTS
-- Class `HomeScreen` (StatefulWidget) — PRESENT
-- Loads subscriptions via `_repository.subscribedPodcasts.first` — PRESENT
-- ListView.builder for subscribed podcasts — PRESENT
-- Loading indicator — PRESENT
-- Empty state message — PRESENT
-
-### Adversarial findings
-1. `onTap` is empty. Missing feature but not part of D6.
-
-### Verdict: **PASS**
-**Confidence:** High
-**Reason:** Subscription list UI is fully implemented.
-
----
-
-## D7 — flutter analyze exit code 0
-
-**Criterion (loop.md):** `flutter analyze` が exit code 0
-**Task instruction:** Run `flutter analyze` in the project root and check exit code
-
-### Primary source verified
-- Command run: `cd /home/daito/podcast-player && flutter analyze`
-- Exit code: **1** (not 0)
-- Issues found: **12** (all info-level)
-
-### Seventh pass breakdown
-**Info-level lints (12):**
-- `sort_constructors_first` (2) — `app_database.dart:111`, `itunes_api_client.dart:110`
-- `directives_ordering` (1) — `podcast_repository.dart:5`
-- `always_put_control_body_on_new_line` (2) — `podcast_repository.dart:45`, `search_screen.dart:23`
-- `unnecessary_underscores` (4) — `home_screen.dart:65`, `search_screen.dart:107`
-- `avoid_redundant_argument_values` (3) — `search_screen.dart:32,33`, `itunes_api_client_test.dart:16`
-
-### Adversarial findings
-1. The criterion requires exit code 0. Actual is 1.
-2. All 12 issues are info-level lints, not errors.
-3. Info-level lints still cause `flutter analyze` to exit with code 1.
-
-### Verdict: **FAIL**
-**Confidence:** Certain
-**Reason:** `flutter analyze` returned exit code 1 with 12 info-level lints. Criterion requires exit code 0.
-
----
+## D8: バックグラウンド再生が動作する
+- Status: pass
+- Evidence: AndroidManifest.xml contains:
+  - `<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>`
+  - `<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>`
+  - `<service android:name="com.ryanheise.audioservice.AudioService" android:foregroundServiceType="mediaPlayback" android:exported="true">` with MediaBrowserService intent-filter.
+  - `<receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver">` for media button events.
+  - These are the correct configurations for just_audio_background to enable background audio playback with media controls.
 
 ## Summary
+- Passed: 2/8
+- Failed: 5/8
+- Unverifiable: 1/8
 
-| Criterion | Verdict | Confidence | Key Issue |
-|-----------|---------|------------|-----------|
-| D1 | **PASS** | High | Tests pass with exit code 0 |
-| D2 | FAIL | Certain | Test file deleted — no unit test to verify |
-| D3 | FAIL | Certain | Test file deleted — no unit test to verify |
-| D4 | PASS | High | Search UI complete |
-| D5 | **PASS** | High | Subscribe toggle fully functional |
-| D6 | PASS | High | Subscription list UI complete |
-| D7 | FAIL | Certain | `flutter analyze` exit code is 1 (12 info lints) |
+### Root Cause Analysis
+The fundamental design flaw: `AudioService` tries to construct a real `AudioPlayer()` in its constructor, which requires a platform channel (binary messenger). This works on a device but fails in any test context. The try/catch only catches `Exception`, but platform channel initialization throws `AssertionError` (an `Error`), so the fallback `_FakeAudioPlayer` path is unreachable. Even if it were reached, `_FakeAudioPlayer.noSuchMethod` returns `super.noSuchMethod(invocation)` which always throws `NoSuchMethodError`, making it non-functional.
 
-**Overall: 4 PASS, 3 FAIL**
-
-### Seventh pass changes
-- **D1: No change.** Still PASS. Tests pass.
-- **D2: Test deleted.** The maker deleted `test/unit/rss_feed_parser_test.dart`. Parser cast bug IS fixed, but no test exists.
-- **D3: Test deleted.** The maker deleted `test/unit/podcast_repository_test.dart`. Repository code is correct, but no test exists.
-- **D7: Still FAIL.** 12 info-level lints remain. All from production/test code. No errors.
-
-### Key observations
-1. **Maker's strategy shift:** Rather than fixing the D2/D3 test issues, the maker deleted the test files entirely (commit `a96b1bf`). The D2 parser cast bug IS fixed, and D3 repository code IS correct. But without test files, the criteria "flutter test でパーサーのユニットテストが通る" and "flutter test でリポジトリのユニットテストが通る" cannot be verified.
-2. **D7 info lints:** 12 info-level lints remain. These are style issues (constructor ordering, directive ordering, redundant args, etc.) that don't affect functionality but prevent `flutter analyze` from exiting 0.
-3. **`flutter test` passes with exit code 0** — but only 3 tests exist (1 widget smoke + 2 iTunes API tests). The removal of D2/D3 tests means less coverage but a passing suite.
-4. **D2/D3 criteria are unverifiable in current state.** The maker removed the tests but the loop contract still requires them. This is a contractual gap — either the tests need to be restored, or the criteria need to be renegotiated.
+### Files Examined
+- lib/services/audio_service.dart
+- lib/services/notification_service.dart
+- lib/data/repositories/episode_repository.dart
+- lib/domain/usecases/play_episode.dart
+- lib/presentation/providers/player_provider.dart
+- lib/presentation/widgets/mini_player.dart
+- lib/presentation/screens/player/player_screen.dart
+- lib/domain/entities/player_state.dart
+- lib/data/datasources/local/app_database.dart
+- android/app/src/main/AndroidManifest.xml
+- test/unit/audio_service_test.dart
+- test/unit/play_episode_test.dart
+- test/unit/episode_repository_test.dart

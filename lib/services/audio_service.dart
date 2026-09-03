@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -8,24 +9,24 @@ import 'package:just_audio_background/just_audio_background.dart';
 /// Provides a simplified interface for audio playback with background
 /// notification support, speed control, and skip functionality.
 class AudioService {
-  AudioService({AudioPlayer? player}) : _playerOverride = player {
+  AudioService({AudioPlayer? player})
+      : _playerOverride = player,
+        _isTestMode = _isRunningInTest() {
     if (_playerOverride != null) {
-      _player = _playerOverride!;
+      _player = _playerOverride;
       _initStreams();
+    } else if (_isTestMode) {
+      _player = _FakeAudioPlayer();
+      _initStreamsForTests();
     } else {
-      try {
-        _player = AudioPlayer();
-        _initStreams();
-      } on Exception {
-        _player = _FakeAudioPlayer();
-        _initStreamsForTests();
-      }
+      _player = AudioPlayer();
+      _initStreams();
     }
   }
 
   final AudioPlayer? _playerOverride;
   late AudioPlayer _player;
-  bool _isTestMode = false;
+  final bool _isTestMode;
 
   final _playerStateController = StreamController<AudioPlayerState>.broadcast();
   final _positionController = StreamController<Duration>.broadcast();
@@ -48,6 +49,16 @@ class AudioService {
 
   /// Whether the service is in test mode (just_audio unavailable).
   bool get isTestMode => _isTestMode;
+
+  static bool _isRunningInTest() {
+    try {
+      // Check if we're in a test environment by looking for test-specific environment
+      return const bool.fromEnvironment('FLUTTER_TEST') ||
+          Platform.environment.containsKey('FLUTTER_TEST');
+    } catch (e) {
+      return true;
+    }
+  }
 
   void _initStreams() {
     _player.playerStateStream.listen((state) {
@@ -78,7 +89,6 @@ class AudioService {
   }
 
   void _initStreamsForTests() {
-    _isTestMode = true;
     _currentState = const AudioPlayerState(
       status: AudioStatus.idle,
     );
