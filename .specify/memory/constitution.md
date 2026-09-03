@@ -1,50 +1,72 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# Podcast Player Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Separation of Concerns
+- **Presentation Layer (UI)**: Flutter widgets and screens — responsible for rendering
+- **Business Logic Layer**: State management (Riverpod/Bloc) — handles app logic
+- **Data Layer**: Repositories, data sources, local DB — manages data persistence and fetching
+- Each module must be independently testable. UI components must be reusable.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Test-First Development (NON-NEGOTIABLE)
+- Write tests BEFORE implementing features
+- Red → Green → Refactor cycle strictly enforced
+- Unit tests for business logic, widget tests for UI, integration tests for critical paths
+- Minimum coverage threshold: 80% for business logic
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. User Experience First
+- **Smooth playback**: Background audio, notification controls, lock screen controls
+- **Intuitive controls**: Play, pause, skip, speed adjustment, sleep timer
+- **Offline support**: Download episodes for offline listening
+- **Accessibility**: Screen reader support, high contrast mode, scalable fonts
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Cross-Platform Consistency
+- Android and Web share design system and core logic
+- Platform-specific features abstracted behind interfaces
+- Responsive layouts that adapt to different screen sizes
+- Single source of truth for business logic via Kotlin Multiplatform or Dart shared code
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Performance & Efficiency
+- Prevent memory leaks with proper resource disposal
+- Efficient list rendering for large podcast catalogs (Virtual scrolling)
+- Optimize battery consumption (audio-only, background task management)
+- Fast cold start (< 2 seconds on mid-range devices)
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Additional Constraints
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### Technology Stack
+- **Framework**: Flutter 3.47+ / Dart 3.13+
+- **Target Platforms**: Android (minSdk 21), Web (responsive)
+- **Audio Engine**: `just_audio` or `audioplayers` package
+- **State Management**: Riverpod (preferred) or Bloc
+- **Local Storage**: Isar (preferred) or Hive for offline cache
+- **Networking**: `dio` + `rss_dart` for RSS feed parsing
+- **API**: iTunes Search API for podcast discovery
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+### Security & Privacy
+- No user data collection without explicit consent
+- Secure token storage via `flutter_secure_storage`
+- Network requests over HTTPS only
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### Architecture Standards
+- Use `freezed` for immutable data models
+- Use `go_router` for declarative routing
+- Use `flutter_hooks` for stateful widget logic where appropriate
+- Follow Flutter official style guide and `analysis_options.yaml` linting
+
+## Development Workflow
+
+1. **Branch Strategy**: Feature branch workflow (`feature/episode-download`, `fix/playback-issue`)
+2. **Code Review**: All PRs require at least one review before merge
+3. **Testing Gate**: CI must pass (tests + linting) before merge is allowed
+4. **Documentation**: Public APIs and complex logic must have inline documentation
+5. **Constitution Compliance**: All PRs must verify alignment with this constitution
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+- This constitution supersedes all other development practices
+- Amendments require team discussion, documentation, and migration plan
+- Version changes follow semantic versioning (MAJOR.MINOR.PATCH)
+- Constitution is a living document — review quarterly
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-09-03 | **Last Amended**: 2026-09-03
