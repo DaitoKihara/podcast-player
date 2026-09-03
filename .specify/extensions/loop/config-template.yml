@@ -1,0 +1,37 @@
+# Loop Engineering configuration
+# Copy to .specify/extensions/loop/loop-config.yml and customize.
+# Every value here is optional — missing keys fall back to extension defaults.
+# Environment variable overrides use the SPECKIT_LOOP_* prefix
+# (e.g. SPECKIT_LOOP_LOOP_MAX_ITERATIONS=12).
+
+# The loop itself: how far autonomy is allowed to run before a human is required.
+loop:
+  max_iterations: 8              # hard ceiling on maker iterations before forced human review
+  done_requires_checker_pass: true  # the loop cannot reach "done" without a passing checker verdict
+  isolation: worktree           # worktree | none — keep parallel iterations from conflicting
+
+# The checker — the separate "grader" half of the maker/checker split.
+# The model that wrote the code is too generous grading its own homework, so the
+# checker should run as a different agent/session and argue against the work.
+checker:
+  independent: true             # refuse to grade if the checker is the same context as the maker
+  adversarial: true             # attempt to break the work; default to "fail" when uncertain
+  votes: 1                      # independent checker passes that must agree before a criterion passes
+
+# Stay-the-engineer guardrails. These exist to counter the three failure modes of
+# unattended loops: silent verification gaps, comprehension debt, and cognitive surrender.
+guard:
+  require_human_signoff: true   # a human must explicitly sign off before "done"
+  track_comprehension_debt: true # record every change a human has not yet understood
+  block_done_on_open_debt: true # open blocking debt prevents declaring the loop done
+
+# How much loop state /speckit.loop.status renders. Slices, never whole files.
+rendering:
+  iterations_slice: 6           # most-recent maker iterations shown
+  debt_slice: 8                 # open comprehension-debt items shown
+  context_tokens: 4000          # soft cap for loop state rendered into context per step
+
+# Where loop state lives.
+state:
+  directory: loop                       # subdirectory of the active feature dir (specs/NNN-name/loop/)
+  fallback_directory: .specify/loops/global  # used when no feature directory exists

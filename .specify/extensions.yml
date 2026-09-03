@@ -1,0 +1,11 @@
+# Spec Kit Extensions Registry
+# https://hermes-agent.nousresearch.com/docs
+
+extensions:
+  - id: loop
+    name: "Loop Engineering"
+    version: "1.0.0"
+    description: "Engineer safe autonomous agent loops for spec-driven development"
+    source: local
+    path: .specify/extensions/loop
+    enabled: true

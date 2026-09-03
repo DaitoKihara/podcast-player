@@ -1,0 +1,22 @@
+# Loop Engineering for Spec Kit — Configuration
+# https://github.com/formin/spec-kit-loop
+
+loop:
+  max_iterations: 8
+  done_requires_checker_pass: true
+  isolation: worktree
+
+checker:
+  independent: true
+  adversarial: true
+  votes: 1
+
+guard:
+  require_human_signoff: true
+  track_comprehension_debt: true
+  block_done_on_open_debt: true
+
+rendering:
+  iterations_slice: 6
+  debt_slice: 8
+  context_tokens: 4000
