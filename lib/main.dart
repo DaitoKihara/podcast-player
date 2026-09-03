@@ -2,24 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
-import 'data/datasources/local/isar_database.dart';
 import 'router/app_router.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    // Initialize Just Audio Background
     await JustAudioBackground.init(
       androidNotificationChannelId: 'com.daitokihara.podcast.channel.audio',
       androidNotificationChannelName: 'Podcast Playback',
       androidNotificationOngoing: true,
     );
 
-    // Initialize Isar Database
-    await IsarDatabase.instance.initialize();
+    // Drift database is auto-initialized on first access
   } on Exception catch (e) {
-    // Log error but still run app with degraded functionality
     debugPrint('Initialization error: $e');
   }
 
