@@ -20,7 +20,7 @@ class Podcasts extends Table {
   BoolColumn get notificationsEnabled => boolean().withDefault(const Constant(true))();
 
   @override
-  List<String> get customConstraints => ['UNIQUE (itunesId)'];
+  List<String> get customConstraints => ['UNIQUE (itunes_id)'];
 }
 
 /// Episodes table - stores episode metadata
@@ -53,7 +53,7 @@ class Subscriptions extends Table {
   BoolColumn get notificationsEnabled => boolean().withDefault(const Constant(true))();
 
   @override
-  List<String> get customConstraints => ['UNIQUE (podcastId)'];
+  List<String> get customConstraints => ['UNIQUE (podcast_id)'];
 }
 
 /// User preferences table

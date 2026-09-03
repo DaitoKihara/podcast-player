@@ -32,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _subscribedPodcasts = podcasts;
         _isLoading = false;
       });
-    } on Exception catch (e) {
+    } on Exception {
       setState(() {
         _isLoading = false;
       });
@@ -62,7 +62,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               width: 50,
                               height: 50,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Icon(Icons.podcasts),
+                              errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.podcasts),
                             )
                           : const Icon(Icons.podcasts),
                       title: Text(podcast.title),

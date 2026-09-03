@@ -67,7 +67,7 @@ class PodcastRepository {
   }
 
   /// Subscribes to a podcast.
-  Future<void> subscribe(Podcast podcast) async {
+  Future<int> subscribe(Podcast podcast) async {
     final db = _database;
 
     final podcastId = await db.into(db.podcasts).insert(
@@ -94,6 +94,8 @@ class PodcastRepository {
             notificationsEnabled: const Value(true),
           ),
         );
+
+    return podcastId;
   }
 
   /// Unsubscribes from a podcast.

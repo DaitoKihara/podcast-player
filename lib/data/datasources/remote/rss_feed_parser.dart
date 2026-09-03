@@ -15,7 +15,10 @@ class RssFeedParser {
   Future<RssFeedResult> parseFeed(String rssUrl) async {
     try {
       final response = await _dio.get(rssUrl);
-      final feed = RssFeed.parse(response.data as String);
+      final xmlString = response.data is String
+          ? response.data as String
+          : response.data.toString();
+      final feed = RssFeed.parse(xmlString);
 
       return RssFeedResult(
         podcastInfo: PodcastInfo(
