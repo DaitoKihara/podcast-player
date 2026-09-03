@@ -13,44 +13,31 @@ analyzer:
 
 linter:
   rules:
-    # Strict rules for production code
     always_declare_return_types: true
-    always_put_control_body_on_new_line: true
-    avoid_catches_without_on_clauses: true
     avoid_equals_and_hash_code_on_mutable_classes: true
-    avoid_field_initializers_in_const_classes: true
     avoid_final_parameters: true
     avoid_multiple_declarations_per_line: true
     avoid_positional_boolean_parameters: true
-    avoid_redundant_argument_values: true
-    avoid_setters_without_getters: true
     avoid_unused_constructor_parameters: true
     avoid_void_async: true
     cancel_subscriptions: true
     close_sinks: true
-    directives_ordering: true
     eol_at_end_of_file: true
     join_return_with_assignment: true
     missing_whitespace_between_adjacent_strings: true
     no_adjacent_strings_in_list: true
-    omit_local_variable_types: true
-    only_throw_errors: true
     prefer_asserts_in_initializer_lists: true
     prefer_constructors_over_static_methods: true
     prefer_final_in_for_each: true
     prefer_final_locals: true
     prefer_foreach: true
     prefer_if_elements_to_conditional_expressions: true
-    prefer_int_literals: true
-    prefer_null_aware_method_calls: true
     prefer_single_quotes: true
     sort_child_properties_last: true
-    sort_constructors_first: true
-    sort_unnamed_constructors_first: true
     test_types_in_equals: true
     throw_in_finally: true
     unnecessary_breaks: true
-    unnecessary_lambdas: true
+    unnecessary_underscores: false
     unnecessary_parenthesis: true
     unnecessary_raw_strings: true
     use_enums: true

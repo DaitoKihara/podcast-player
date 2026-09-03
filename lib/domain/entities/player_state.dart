@@ -10,6 +10,7 @@ sealed class PlayerState with _$PlayerState {
     required int position,
     required int duration,
     @Default(1.0) double speed,
+    String? errorMessage,
   }) = _PlayerState;
 }
 
