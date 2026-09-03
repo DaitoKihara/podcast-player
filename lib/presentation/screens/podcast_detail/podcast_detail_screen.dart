@@ -23,7 +23,16 @@ class _PodcastDetailScreenState extends State<PodcastDetailScreen> {
   }
 
   Future<void> _checkSubscription() async {
-    // TODO: Check if already subscribed
+    try {
+      final subscription = await _repository.getSubscription(widget.podcastId);
+      if (mounted) {
+        setState(() {
+          _isSubscribed = subscription != null;
+        });
+      }
+    } catch (e) {
+      // Not subscribed yet
+    }
   }
 
   Future<void> _toggleSubscription() async {
@@ -32,9 +41,18 @@ class _PodcastDetailScreenState extends State<PodcastDetailScreen> {
     });
 
     try {
-      // TODO: Toggle subscription
+      final wasSubscribed = _isSubscribed;
+      if (wasSubscribed) {
+        await _repository.unsubscribe(widget.podcastId);
+      } else {
+        // For now, create a placeholder podcast to subscribe
+        // In a real app, you'd fetch podcast data from RSS or iTunes first
+        // This will be properly implemented in the full flow
+        throw UnimplementedError('Podcast subscription requires fetching podcast data first');
+      }
+
       setState(() {
-        _isSubscribed = !_isSubscribed;
+        _isSubscribed = !wasSubscribed;
         _isLoading = false;
       });
     } catch (e) {

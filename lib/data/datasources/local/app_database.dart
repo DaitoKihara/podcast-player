@@ -1,6 +1,5 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
-import '../../../domain/entities/app_exception.dart';
 
 part 'app_database.g.dart';
 

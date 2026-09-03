@@ -95,6 +95,13 @@ class PodcastRepository {
     await (db.delete(db.podcasts)..where((t) => t.id.equals(podcastId))).go();
   }
 
+  /// Gets a subscription by podcast ID.
+  Future<Subscription?> getSubscription(int podcastId) async {
+    final db = _database;
+    final query = db.select(db.subscriptions)..where((t) => t.podcastId.equals(podcastId));
+    return query.getSingleOrNull();
+  }
+
   /// Gets all subscribed podcasts.
   Stream<List<Podcast>> get subscribedPodcasts {
     final db = _database;

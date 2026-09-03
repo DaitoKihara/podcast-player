@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:intl/intl.dart';
 import 'package:rss_dart/dart_rss.dart';
 
 import '../../../core/network/dio_client.dart';
@@ -29,8 +30,7 @@ class RssFeedParser {
                   description: item.description ?? '',
                   audioUrl: item.enclosure!.url!,
                   duration: item.itunes?.duration?.inSeconds,
-                  publishDate:
-                      DateTime.tryParse(item.pubDate ?? '') ?? DateTime.now(),
+                  publishDate: _parseRfc822(item.pubDate),
                   guid: item.guid ?? item.link ?? item.enclosure!.url!,
                 ))
             .toList(),
@@ -45,6 +45,22 @@ class RssFeedParser {
         message: 'Failed to parse RSS feed',
         originalError: e,
       );
+    }
+  }
+
+  DateTime _parseRfc822(String? date) {
+    if (date == null || date.isEmpty) {
+      return DateTime.now();
+    }
+    try {
+      return DateTime.parse(date);
+    } on Exception {
+      try {
+        final format = DateFormat('EEE, dd MMM yyyy HH:mm:ss', 'en_US');
+        return format.parse(date);
+      } on Exception {
+        return DateTime.now();
+      }
     }
   }
 }

@@ -41,6 +41,7 @@ dependencies:
 
   # RSS Parsing
   rss_dart: ^1.0.14
+  intl: ^0.20.3
 
   # Image Caching
   cached_network_image: ^3.4.1
