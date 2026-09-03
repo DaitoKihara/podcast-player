@@ -81,10 +81,9 @@ class DownloadEpisode {
 
   /// Delete a downloaded episode.
   Future<void> deleteDownload(int episodeId) async {
-    final episodes = await _episodeRepository.getEpisodes(episodeId);
-    if (episodes.isEmpty) return;
+    final episode = await _episodeRepository.getEpisode(episodeId);
+    if (episode == null) return;
 
-    final episode = episodes.first;
     if (episode.localPath != null) {
       await _downloadService.deleteDownload(episode.localPath!);
       await _episodeRepository.clearDownloadInfo(episodeId);

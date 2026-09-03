@@ -143,14 +143,6 @@ class EpisodeRepository {
     return query.getSingleOrNull();
   }
 
-  /// Gets downloaded episodes.
-  Stream<List<Episode>> get downloadedEpisodes {
-    final db = _database;
-    final query = db.select(db.episodes)
-      ..where((t) => t.localPath.isNotNull());
-    return Stream.fromFuture(query.get());
-  }
-
   /// Marks an episode as downloaded with local path and file size.
   Future<void> markAsDownloaded(int episodeId, String localPath, int fileSize) async {
     final db = _database;
