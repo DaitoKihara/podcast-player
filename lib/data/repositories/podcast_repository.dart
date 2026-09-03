@@ -58,6 +58,14 @@ class PodcastRepository {
     return query.getSingleOrNull();
   }
 
+  /// Subscribes to a podcast by ID (fetches data first).
+  Future<void> subscribeById(int podcastId) async {
+    final db = _database;
+    final query = db.select(db.podcasts)..where((t) => t.id.equals(podcastId));
+    final podcast = await query.getSingle();
+    await subscribe(podcast);
+  }
+
   /// Subscribes to a podcast.
   Future<void> subscribe(Podcast podcast) async {
     final db = _database;

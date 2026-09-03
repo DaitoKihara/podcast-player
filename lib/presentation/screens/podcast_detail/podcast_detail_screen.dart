@@ -30,7 +30,7 @@ class _PodcastDetailScreenState extends State<PodcastDetailScreen> {
           _isSubscribed = subscription != null;
         });
       }
-    } catch (e) {
+    } on Exception {
       // Not subscribed yet
     }
   }
@@ -45,17 +45,14 @@ class _PodcastDetailScreenState extends State<PodcastDetailScreen> {
       if (wasSubscribed) {
         await _repository.unsubscribe(widget.podcastId);
       } else {
-        // For now, create a placeholder podcast to subscribe
-        // In a real app, you'd fetch podcast data from RSS or iTunes first
-        // This will be properly implemented in the full flow
-        throw UnimplementedError('Podcast subscription requires fetching podcast data first');
+        await _repository.subscribeById(widget.podcastId);
       }
 
       setState(() {
         _isSubscribed = !wasSubscribed;
         _isLoading = false;
       });
-    } catch (e) {
+    } on Exception catch (e) {
       setState(() {
         _isLoading = false;
       });

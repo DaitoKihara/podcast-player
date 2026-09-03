@@ -6,7 +6,7 @@
 ## Done-criteria
 | ID | Criterion (checkable) | How the checker verifies it | Status |
 |----|-----------------------|-----------------------------|--------|
-| D1 | iTunes Search APIでポッドキャスト検索が動作する | `flutter test` でAPIクライアントのユニットテストが通る | checker-fail |
+| D1 | iTunes Search APIでポッドキャスト検索が動作する | `flutter test` でAPIクライアントのユニットテストが通る | checker-pass |
 | D2 | RSSフィードパーサーがエピソード一覧を取得できる | `flutter test` でパーサーのユニットテストが通る | checker-fail |
 | D3 | PodcastRepositoryで購読・解除ができる | `flutter test` でリポジトリのユニットテストが通る | checker-fail |
 | D4 | SearchScreenで検索結果が表示される | 検索画面をビルドして結果が表示される | checker-pass |
@@ -40,5 +40,5 @@ Statuses: pending → maker-ready → checker-pass | checker-fail → human-sign
 
 ## State
 - Phase: running
-- Last updated: 2026-09-03 (3rd checker pass)
-- Iterations run: 1 (3rd pass: compilation fixed, runtime still failing)
+- Last updated: 2026-09-03 (4th checker pass)
+- Iterations run: 1 (4th pass: D1 cast bug fixed — now 3 PASS, 4 FAIL)
