@@ -18,6 +18,9 @@ class PodcastRepository {
 
   /// Searches for podcasts via iTunes API.
   Future<List<Podcast>> search(PodcastSearchQuery query) async {
+    if (query.term.isEmpty) {
+      return <Podcast>[];
+    }
     try {
       final results = await _apiClient.searchPodcasts(
         term: query.term,

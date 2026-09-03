@@ -83,7 +83,7 @@ class Bookmarks extends Table {
   TextColumn get note => text().nullable()();
 
   @override
-  List<String> get customConstraints => ['UNIQUE (episodeId, position)'];
+  List<String> get customConstraints => ['UNIQUE (episode_id, position)'];
 }
 
 /// Download records table
@@ -97,7 +97,7 @@ class DownloadRecords extends Table {
   IntColumn get status => integer()();
 
   @override
-  List<String> get customConstraints => ['UNIQUE (episodeId)'];
+  List<String> get customConstraints => ['UNIQUE (episode_id)'];
 }
 
 /// Manages the Drift database instance.

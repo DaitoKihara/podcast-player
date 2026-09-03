@@ -7,7 +7,7 @@ import '../../../domain/entities/app_exception.dart';
 
 /// RSS feed parser for fetching podcast episodes.
 class RssFeedParser {
-  RssFeedParser() : _dio = createGeneralDio();
+  RssFeedParser({Dio? dio}) : _dio = dio ?? createGeneralDio();
 
   final Dio _dio;
 
