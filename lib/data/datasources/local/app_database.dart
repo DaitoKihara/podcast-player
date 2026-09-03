@@ -103,9 +103,14 @@ class DownloadRecords extends Table {
 /// Manages the Drift database instance.
 @DriftDatabase(tables: [Podcasts, Episodes, Subscriptions, UserPreferences, Bookmarks, DownloadRecords])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase._() : super(_openConnection());
+  AppDatabase._(QueryExecutor executor) : super(executor);
 
-  static final AppDatabase instance = AppDatabase._();
+  static final AppDatabase instance = AppDatabase._(_openConnection());
+
+  /// Creates an AppDatabase for testing with an in-memory database.
+  factory AppDatabase.forTest(QueryExecutor executor) {
+    return AppDatabase._(executor);
+  }
 
   @override
   int get schemaVersion => 1;

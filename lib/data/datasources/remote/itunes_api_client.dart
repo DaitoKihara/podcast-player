@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 import '../../../core/network/dio_client.dart';
@@ -26,7 +28,9 @@ class ITunesApiClient {
         },
       );
 
-      final data = response.data as Map<String, dynamic>;
+      final data = response.data is String
+          ? jsonDecode(response.data as String) as Map<String, dynamic>
+          : response.data as Map<String, dynamic>;
       final results = data['results'] as List<dynamic>? ?? [];
 
       return results
@@ -57,7 +61,9 @@ class ITunesApiClient {
         },
       );
 
-      final data = response.data as Map<String, dynamic>;
+      final data = response.data is String
+          ? jsonDecode(response.data as String) as Map<String, dynamic>
+          : response.data as Map<String, dynamic>;
       final results = data['results'] as List<dynamic>? ?? [];
 
       if (results.isEmpty) {

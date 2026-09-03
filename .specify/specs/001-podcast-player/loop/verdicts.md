@@ -1,7 +1,7 @@
 # Checker Verdicts
 
 Adversarial verification of D1-D7 against primary sources.
-Checker: independent session (adversarial grader) — SECOND PASS
+Checker: independent session (adversarial grader) — THIRD PASS
 Date: 2026-09-03
 
 ---
@@ -21,13 +21,14 @@ Date: 2026-09-03
 - Test file: `test/unit/itunes_api_client_test.dart` — EXISTS
 
 ### Adversarial findings
-1. **Test compilation failure.** The test references `first.title` and `first.author` but `PodcastSearchResult` has fields named `collectionName` and `artistName`. The getters `title` and `author` do not exist on the class. This causes a compilation error: `undefined_getter`.
-2. **Test requires network access.** The test calls the live iTunes API (`client.searchPodcasts(term: 'tech', ...)`), making it an integration test, not a unit test. It will fail in CI/offline environments.
-3. **`flutter test` result: FAILED.** Exit code 1. The test file fails to compile.
+1. **Test compilation: FIXED.** The test now uses `collectionName` and `artistName` correctly. No more `undefined_getter` errors.
+2. **Test runtime failure.** Both tests fail at runtime with: `type 'String' is not a subtype of type 'Map<String, dynamic>' in type cast` at `itunes_api_client.dart:43` (catch block). The actual error occurs at line 29: `final data = response.data as Map<String, dynamic>`. Dio returns `response.data` as a `String` (JSON string that needs parsing), not a parsed `Map`. This is a **source code bug** — the cast fails because Dio's default behavior with certain response types returns a String.
+3. **Tests require network access.** The tests call the live iTunes API, making them integration tests. They will fail in CI/offline environments regardless of the cast bug.
+4. **`flutter test` result: FAILED.** Exit code 1. Both D1 tests fail.
 
 ### Verdict: **FAIL**
 **Confidence:** Certain
-**Reason:** Tests do not compile due to referencing non-existent getters (`title`, `author` on `PodcastSearchResult`). The loop.md verification path ("flutter test で…ユニットテストが通る") cannot be satisfied.
+**Reason:** Tests compile now but fail at runtime. The root cause is a bug in `itunes_api_client.dart:29` — `response.data` is cast to `Map<String, dynamic>` but Dio returns a `String`. The test correctly exposes this bug. Additionally, these are integration tests requiring live network access.
 
 ---
 
@@ -46,13 +47,13 @@ Date: 2026-09-03
 - Test file: `test/unit/rss_feed_parser_test.dart` — EXISTS
 
 ### Adversarial findings
-1. **Test failure — exception type mismatch.** The test expects `throwsA(isA<Exception>())` for an invalid URL. The parser throws `FeedParseException` (a freezed sealed class implementing `AppException`). The `isA<Exception>()` matcher fails because `FeedParseException` does not extend `Exception` directly — it extends `AppException` (a freezed class). The test output shows: `threw FeedParseException:<...> which is not an instance of 'Exception'`.
-2. **First test requires network access.** Calls a live RSS feed URL, making it an integration test.
-3. **`flutter test` result: FAILED.** The "invalid URL" test fails with the exception type mismatch.
+1. **Exception type test: FIXED.** The test now uses `throwsA(isA<AppException>())` and imports `app_exception.dart`. The "handles invalid URL gracefully" test PASSES.
+2. **First test requires network access.** The test calls a live RSS feed URL (`https://feeds.simplecast.com/54nAGcIl`), making it an integration test. It fails at runtime because the network call returns unexpected data or fails.
+3. **`flutter test` result: FAILED.** The first test fails (network/integration issue). The second test passes.
 
 ### Verdict: **FAIL**
 **Confidence:** High
-**Reason:** Tests don't pass. The exception type assertion is incorrect — `FeedParseException` doesn't extend `Exception` in a way that `isA<Exception>()` recognizes. The maker fixed the RFC 822 date parsing bug (good), but the test itself is broken.
+**Reason:** The exception type test now passes (fix confirmed). However, the first test still fails because it calls a live RSS feed — an integration test that requires network access. The criterion requires `flutter test` to pass, which it doesn't.
 
 ---
 
@@ -70,13 +71,14 @@ Date: 2026-09-03
 - Test file: `test/unit/podcast_repository_test.dart` — EXISTS
 
 ### Adversarial findings
-1. **Test compilation failure.** The test uses `Podcast(...)` constructor but never imports the `Podcast` class. The `Podcast` entity is defined in `lib/data/datasources/local/app_database.g.dart` (Drift generated code), which is not imported. Error: `undefined_function: 'Podcast'`.
-2. **Test requires real database.** Even if the import were fixed, `PodcastRepository()` uses `AppDatabase.instance` which requires a real Drift database. Without mocking, these tests will fail at runtime.
-3. **`flutter test` result: FAILED.** Exit code 1. Compilation error.
+1. **Test compilation: FIXED.** The test now imports `app_database.dart` which provides access to the `Podcast` class. No more `undefined_function: 'Podcast'` errors.
+2. **Runtime failure: `Binding has not yet been initialized`.** All three tests fail because `PodcastRepository()` defaults to `AppDatabase.instance`, which calls `driftDatabase()` from `drift_flutter`. This requires platform channels (`path_provider`) that need `WidgetsFlutterBinding.ensureInitialized()`. The test doesn't initialize the binding, so every database operation fails.
+3. **Tests are integration tests.** Even with binding initialization, these tests would require a real Drift database, making them integration tests rather than unit tests.
+4. **`flutter test` result: FAILED.** Exit code 1. All three D3 tests fail.
 
 ### Verdict: **FAIL**
 **Confidence:** Certain
-**Reason:** Tests do not compile due to missing import for the `Podcast` class. The loop.md verification path cannot be satisfied.
+**Reason:** Tests compile now but fail at runtime with `Binding has not yet been initialized`. The `AppDatabase.instance` singleton requires platform channels that aren't available in unit tests. The tests need either `TestWidgetsFlutterBinding.ensureInitialized()` or mocked dependencies.
 
 ---
 
@@ -100,7 +102,7 @@ Date: 2026-09-03
 
 ### Verdict: **PASS**
 **Confidence:** High
-**Reason:** Search UI is fully implemented with all required elements. Unchanged from previous pass.
+**Reason:** Search UI is fully implemented with all required elements. Unchanged from previous passes.
 
 ---
 
@@ -114,8 +116,8 @@ Date: 2026-09-03
 - Class `PodcastDetailScreen` (StatefulWidget) — PRESENT
 - Subscribe/Unsubscribe button — PRESENT (text toggles based on `_isSubscribed`)
 - `_repository` field — PRESENT (now used)
-- `_checkSubscription()` — NOW CALLS `_repository.getSubscription()` (improved from stub)
-- `_toggleSubscription()` unsubscribe path — NOW CALLS `_repository.unsubscribe()` (improved from stub)
+- `_checkSubscription()` — CALLS `_repository.getSubscription()` (works)
+- `_toggleSubscription()` unsubscribe path — CALLS `_repository.unsubscribe()` (works)
 
 ### Adversarial findings
 1. **Subscribe path is still a stub.** Line 51: `throw UnimplementedError('Podcast subscription requires fetching podcast data first');`. The subscribe action throws an exception instead of performing the subscription. Only unsubscribe works.
@@ -147,7 +149,7 @@ Date: 2026-09-03
 
 ### Verdict: **PASS**
 **Confidence:** High
-**Reason:** Subscription list UI is fully implemented. Unchanged from previous pass.
+**Reason:** Subscription list UI is fully implemented. Unchanged from previous passes.
 
 ---
 
@@ -157,23 +159,28 @@ Date: 2026-09-03
 **Task instruction:** Run `flutter analyze` in the project root and check exit code
 
 ### Primary source verified
-- Command run: `cd /home/daito/podcast-player && flutter analyze; echo "EXIT_CODE=$?"`
+- Command run: `cd /home/daito/podcast-player && flutter analyze`
 - Exit code: **1** (not 0)
-- Issues found: **24**
-  - 3 errors (all in test files):
-    - `undefined_getter: 'title'` in `itunes_api_client_test.dart:25`
-    - `undefined_getter: 'author'` in `itunes_api_client_test.dart:26`
-    - `undefined_function: 'Podcast'` in `podcast_repository_test.dart:27,50`
-  - 21 info-level lints (pre-existing, not new)
+- Issues found: **21** (all info-level, no errors)
+  - `prefer_int_literals` (2)
+  - `sort_constructors_first` (1)
+  - `only_throw_errors` (2)
+  - `directives_ordering` (2)
+  - `always_put_control_body_on_new_line` (2)
+  - `avoid_catches_without_on_clauses` (2)
+  - `unnecessary_underscores` (4)
+  - `prefer_if_elements_to_conditional_expressions` (1)
+  - `avoid_redundant_argument_values` (3)
+  - `sort directive sections` (2)
 
 ### Adversarial findings
 1. The criterion explicitly requires exit code 0. The actual exit code is 1.
-2. Even if the test errors were fixed, the 21 info-level lints would still cause exit code 1. `flutter analyze` returns exit code 1 when ANY issues (info, warning, or error) are present.
-3. The new test files introduced 3 compilation errors that also contribute to the failure.
+2. All 21 issues are info-level lints (no errors or warnings). `flutter analyze` returns exit code 1 when ANY issues (info, warning, or error) are present.
+3. The test compilation errors from previous passes are FIXED — no more errors in test files.
 
 ### Verdict: **FAIL**
 **Confidence:** Certain
-**Reason:** `flutter analyze` returned exit code 1 with 24 issues (3 errors, 21 info). The criterion requires exit code 0. Both the new test errors and pre-existing lints contribute.
+**Reason:** `flutter analyze` returned exit code 1 with 21 info-level lints. The criterion requires exit code 0. While the test file compilation errors are fixed, the pre-existing code style lints still cause a non-zero exit code.
 
 ---
 
@@ -181,22 +188,27 @@ Date: 2026-09-03
 
 | Criterion | Verdict | Confidence | Key Issue |
 |-----------|---------|------------|-----------|
-| D1 | FAIL | Certain | Tests don't compile — `title`/`author` getters don't exist on `PodcastSearchResult` |
-| D2 | FAIL | High | Tests fail — `FeedParseException` not recognized as `Exception` by matcher |
-| D3 | FAIL | Certain | Tests don't compile — `Podcast` class not imported |
+| D1 | FAIL | Certain | Tests compile but fail at runtime — `response.data` cast bug in source + network dependency |
+| D2 | FAIL | High | Exception test passes (fix confirmed), but first test fails — requires live network |
+| D3 | FAIL | Certain | Tests compile but fail at runtime — `Binding not initialized` (needs platform channels) |
 | D4 | PASS | High | Search UI complete (unchanged) |
 | D5 | FAIL | High | Subscribe path throws `UnimplementedError` — only unsubscribe works |
 | D6 | PASS | High | Subscription list UI complete (unchanged) |
-| D7 | FAIL | Certain | `flutter analyze` exit code is 1 (24 issues: 3 errors, 21 info) |
+| D7 | FAIL | Certain | `flutter analyze` exit code is 1 (21 info-level lints, no errors) |
 
-**Overall: 3 PASS, 4 FAIL**
+**Overall: 2 PASS, 5 FAIL**
 
-### Maker progress since 1st pass
-- D1: Added test file, but tests don't compile ❌
-- D2: Added test file + fixed RFC 822 date parsing, but test fails due to exception type mismatch ❌
-- D3: Added test file, but tests don't compile ❌
-- D5: Partially fixed — `_checkSubscription()` and unsubscribe now work, but subscribe still throws ❌
-- D7: Still exit code 1 (new test errors + pre-existing lints) ❌
+### Maker progress since 2nd pass
+- D1: Compilation fixed (getter names corrected). Tests now compile but fail at runtime due to source bug + network ❌
+- D2: Exception type test fixed (now uses `AppException`). Second test passes. First test still requires network ❌
+- D3: Compilation fixed (import added). Tests now compile but fail at runtime due to missing binding initialization ❌
+- D7: Test compilation errors fixed. No more errors, but 21 info lints remain ❌
 
 ### Key blocker pattern
-All three new test files (D1, D2, D3) have compilation or runtime errors that prevent `flutter test` from passing. The tests appear to have been written without verifying they compile against the actual class interfaces.
+The compilation errors are fixed, but the tests are fundamentally integration tests that require:
+1. Network access (D1, D2 first test)
+2. Platform channels / real database (D3)
+
+The tests were written as if they were unit tests but actually exercise live external dependencies. To make them true unit tests, the code needs dependency injection with mocked HTTP client (D1, D2) and mocked database (D3).
+
+Additionally, D1 exposes a real bug: `itunes_api_client.dart:29` casts `response.data` to `Map<String, dynamic>` but Dio returns a `String` when the response isn't auto-parsed as JSON.
