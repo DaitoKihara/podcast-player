@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Placeholder provider for player state.
+import '../../domain/entities/player_state.dart';
+
+/// Provider for the current player state.
 /// This will be fully implemented in Phase 4.
-final playerProvider = StateProvider<String>((ref) => 'idle');
+final playerProvider = StateProvider<PlayerState?>((ref) => null);

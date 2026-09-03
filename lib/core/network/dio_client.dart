@@ -14,7 +14,18 @@ Dio createITunesDio() {
     ),
   );
 
-  dio.interceptors.add(LogInterceptor());
+  // Add retry interceptor for rate limiting (429)
+  dio.interceptors.add(
+    InterceptorsWrapper(
+      onError: (DioException error, ErrorInterceptorHandler handler) {
+        if (error.response?.statusCode == 429) {
+          // Rate limited - could implement retry with backoff here
+          // For now, let the error propagate
+        }
+        return handler.next(error);
+      },
+    ),
+  );
 
   return dio;
 }
@@ -31,8 +42,6 @@ Dio createGeneralDio() {
       },
     ),
   );
-
-  dio.interceptors.add(LogInterceptor());
 
   return dio;
 }

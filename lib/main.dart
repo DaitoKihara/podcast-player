@@ -8,15 +8,20 @@ import 'router/app_router.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Just Audio Background
-  await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.daitokihara.podcast.channel.audio',
-    androidNotificationChannelName: 'Podcast Playback',
-    androidNotificationOngoing: true,
-  );
+  try {
+    // Initialize Just Audio Background
+    await JustAudioBackground.init(
+      androidNotificationChannelId: 'com.daitokihara.podcast.channel.audio',
+      androidNotificationChannelName: 'Podcast Playback',
+      androidNotificationOngoing: true,
+    );
 
-  // Initialize Isar Database
-  await IsarDatabase.instance.initialize();
+    // Initialize Isar Database
+    await IsarDatabase.instance.initialize();
+  } on Exception catch (e) {
+    // Log error but still run app with degraded functionality
+    debugPrint('Initialization error: $e');
+  }
 
   runApp(
     const ProviderScope(
