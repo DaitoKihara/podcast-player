@@ -102,6 +102,28 @@ void main() {
       expect(episodes.first.playedPosition, equals(120));
     });
 
+    test('markAsUnplayed resets played status', () async {
+      final db = database;
+      final id = await db.into(db.episodes).insert(
+            EpisodesCompanion(
+              podcastId: const Value(1),
+              title: const Value('Episode 1'),
+              description: const Value('Description'),
+              audioUrl: const Value('https://example.com/ep1.mp3'),
+              guid: const Value('guid-1'),
+              isPlayed: const Value(true),
+              playedPosition: const Value(300),
+              publishDate: Value(DateTime.now()),
+            ),
+          );
+
+      await repository.markAsUnplayed(id);
+
+      final episodes = await repository.getEpisodes(1);
+      expect(episodes.first.isPlayed, isFalse);
+      expect(episodes.first.playedPosition, equals(0));
+    });
+
     test('toggleFavorite flips favorite status', () async {
       final db = database;
       final id = await db.into(db.episodes).insert(

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:podcast_player/data/datasources/local/app_database.dart';
 import 'package:podcast_player/data/repositories/episode_repository.dart';
 import 'package:podcast_player/domain/entities/player_state.dart';
+import 'package:podcast_player/domain/usecases/mark_as_played.dart';
 import 'package:podcast_player/services/audio_service.dart';
 
 // Services
@@ -88,6 +89,21 @@ final skipForwardProvider = Provider<SkipForwardAction>((ref) {
 /// Provider for skipping backward.
 final skipBackwardProvider = Provider<SkipBackwardAction>((ref) {
   return SkipBackwardAction(audioService: ref.watch(audioServiceProvider));
+});
+
+/// Provider for marking episode as played.
+final markAsPlayedProvider = Provider<MarkAsPlayedAction>((ref) {
+  return MarkAsPlayedAction(
+    markAsPlayed: MarkAsPlayed(),
+    episodeRepository: ref.watch(episodeRepositoryProvider),
+  );
+});
+
+/// Provider for toggling episode favorite.
+final toggleFavoriteProvider = Provider<ToggleFavoriteAction>((ref) {
+  return ToggleFavoriteAction(
+    episodeRepository: ref.watch(episodeRepositoryProvider),
+  );
 });
 
 // Notifier
@@ -233,5 +249,39 @@ class SkipBackwardAction {
 
   Future<void> call([Duration? duration]) async {
     await audioService.skipBackward(duration ?? const Duration(seconds: 10));
+  }
+}
+
+/// Action to mark an episode as played with 90% threshold.
+class MarkAsPlayedAction {
+  MarkAsPlayedAction({
+    required this.markAsPlayed,
+    required this.episodeRepository,
+  });
+
+  final MarkAsPlayed markAsPlayed;
+  final EpisodeRepository episodeRepository;
+
+  Future<bool> call({
+    required int episodeId,
+    required int positionSeconds,
+    required int durationSeconds,
+  }) {
+    return markAsPlayed.call(
+      episodeId: episodeId,
+      positionSeconds: positionSeconds,
+      durationSeconds: durationSeconds,
+    );
+  }
+}
+
+/// Action to toggle the favorite status of an episode.
+class ToggleFavoriteAction {
+  ToggleFavoriteAction({required this.episodeRepository});
+
+  final EpisodeRepository episodeRepository;
+
+  Future<void> call(int episodeId) {
+    return episodeRepository.toggleFavorite(episodeId);
   }
 }

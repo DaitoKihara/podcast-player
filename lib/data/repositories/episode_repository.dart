@@ -88,6 +88,17 @@ class EpisodeRepository {
         );
   }
 
+  /// Marks an episode as unplayed.
+  Future<void> markAsUnplayed(int episodeId) async {
+    final db = _database;
+    await (db.update(db.episodes)..where((t) => t.id.equals(episodeId))).write(
+          const EpisodesCompanion(
+            isPlayed: Value(false),
+            playedPosition: Value(0),
+          ),
+        );
+  }
+
   /// Toggles the favorite status of an episode.
   Future<void> toggleFavorite(int episodeId) async {
     final db = _database;
