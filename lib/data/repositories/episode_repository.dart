@@ -143,6 +143,44 @@ class EpisodeRepository {
     return Stream.fromFuture(query.get());
   }
 
+  /// Marks an episode as downloaded with local path and file size.
+  Future<void> markAsDownloaded(int episodeId, String localPath, int fileSize) async {
+    final db = _database;
+    await (db.update(db.episodes)..where((t) => t.id.equals(episodeId))).write(
+          EpisodesCompanion(
+            localPath: Value(localPath),
+          ),
+        );
+    await db.into(db.downloadRecords).insert(
+          DownloadRecordsCompanion(
+            episodeId: Value(episodeId),
+            localPath: Value(localPath),
+            downloadedAt: Value(DateTime.now()),
+            fileSize: Value(fileSize),
+            status: const Value(2), // completed
+          ),
+        );
+  }
+
+  /// Clears download info for an episode.
+  Future<void> clearDownloadInfo(int episodeId) async {
+    final db = _database;
+    await (db.update(db.episodes)..where((t) => t.id.equals(episodeId))).write(
+          const EpisodesCompanion(
+            localPath: Value(null),
+          ),
+        );
+    await (db.delete(db.downloadRecords)..where((t) => t.episodeId.equals(episodeId))).go();
+  }
+
+  /// Gets downloaded episodes.
+  Stream<List<Episode>> getDownloadedEpisodes() {
+    final db = _database;
+    final query = db.select(db.episodes)
+      ..where((t) => t.localPath.isNotNull());
+    return Stream.fromFuture(query.get());
+  }
+
   /// Gets new (unplayed) episodes for a podcast.
   Stream<List<Episode>> getNewEpisodes(int podcastId) {
     final db = _database;

@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 /// Features:
 /// - Play indicator (icon when currently playing)
 /// - Favorite toggle button (heart icon, filled/outline)
+/// - Download button with progress indicator
 /// - Long-press menu (mark played/unplayed)
-/// - State indicators: isNew, isPlayed, isFavorite
+/// - State indicators: isNew, isPlayed, isFavorite, isDownloaded
 class EpisodeTile extends StatelessWidget {
   const EpisodeTile({
     super.key,
@@ -20,7 +21,11 @@ class EpisodeTile extends StatelessWidget {
     this.onFavoriteToggle,
     this.onMarkPlayed,
     this.onMarkUnplayed,
+    this.onDownload,
+    this.onDeleteDownload,
     this.isCurrentlyPlaying = false,
+    this.localPath,
+    this.downloadProgress,
   });
 
   final String title;
@@ -33,7 +38,14 @@ class EpisodeTile extends StatelessWidget {
   final VoidCallback? onFavoriteToggle;
   final VoidCallback? onMarkPlayed;
   final VoidCallback? onMarkUnplayed;
+  final VoidCallback? onDownload;
+  final VoidCallback? onDeleteDownload;
   final bool isCurrentlyPlaying;
+  final String? localPath;
+  final double? downloadProgress;
+
+  bool get isDownloaded => localPath != null && localPath!.isNotEmpty;
+  bool get isDownloading => downloadProgress != null;
 
   String get _formattedDuration {
     final hours = duration.inHours;
@@ -81,7 +93,15 @@ class EpisodeTile extends StatelessWidget {
           Text(_formattedDuration),
           const SizedBox(width: 8),
           Text(_formattedDate),
-          if (isNew && !isPlayed) ...[
+          if (isDownloading) ...[
+            const SizedBox(width: 8),
+            Expanded(
+              child: LinearProgressIndicator(
+                value: downloadProgress,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+              ),
+            ),
+          ] else if (isNew && !isPlayed) ...[
             const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -104,6 +124,7 @@ class EpisodeTile extends StatelessWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          _buildDownloadButton(theme),
           if (onFavoriteToggle != null)
             IconButton(
               icon: Icon(
@@ -120,6 +141,40 @@ class EpisodeTile extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildDownloadButton(ThemeData theme) {
+    if (isDownloading) {
+      return SizedBox(
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(
+          value: downloadProgress,
+          strokeWidth: 2,
+        ),
+      );
+    }
+
+    if (isDownloaded) {
+      return IconButton(
+        icon: Icon(
+          Icons.download_done,
+          color: theme.colorScheme.primary,
+        ),
+        onPressed: onDeleteDownload,
+        tooltip: 'Delete download',
+      );
+    }
+
+    if (onDownload != null) {
+      return IconButton(
+        icon: const Icon(Icons.download_outlined),
+        onPressed: onDownload,
+        tooltip: 'Download',
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   Widget _buildLeadingIcon(ThemeData theme) {
@@ -167,6 +222,24 @@ class EpisodeTile extends StatelessWidget {
                 onTap: () {
                   Navigator.pop(context);
                   onMarkUnplayed!();
+                },
+              ),
+            if (onDownload != null && !isDownloaded && !isDownloading)
+              ListTile(
+                leading: const Icon(Icons.download),
+                title: const Text('Download'),
+                onTap: () {
+                  Navigator.pop(context);
+                  onDownload!();
+                },
+              ),
+            if (onDeleteDownload != null && isDownloaded)
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Delete Download'),
+                onTap: () {
+                  Navigator.pop(context);
+                  onDeleteDownload!();
                 },
               ),
           ],
