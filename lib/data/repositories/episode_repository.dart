@@ -135,8 +135,46 @@ class EpisodeRepository {
     return query.getSingleOrNull();
   }
 
+  /// Gets an episode by its ID.
+  Future<Episode?> getEpisode(int episodeId) async {
+    final db = _database;
+    final query = db.select(db.episodes)
+      ..where((t) => t.id.equals(episodeId));
+    return query.getSingleOrNull();
+  }
+
+  /// Marks an episode as downloaded with local path and file size.
+  Future<void> markAsDownloaded(int episodeId, String localPath, int fileSize) async {
+    final db = _database;
+    await (db.update(db.episodes)..where((t) => t.id.equals(episodeId))).write(
+          EpisodesCompanion(
+            localPath: Value(localPath),
+          ),
+        );
+    await db.into(db.downloadRecords).insert(
+          DownloadRecordsCompanion(
+            episodeId: Value(episodeId),
+            localPath: Value(localPath),
+            downloadedAt: Value(DateTime.now()),
+            fileSize: Value(fileSize),
+            status: const Value(2), // completed
+          ),
+        );
+  }
+
+  /// Clears download info for an episode.
+  Future<void> clearDownloadInfo(int episodeId) async {
+    final db = _database;
+    await (db.update(db.episodes)..where((t) => t.id.equals(episodeId))).write(
+          const EpisodesCompanion(
+            localPath: Value(null),
+          ),
+        );
+    await (db.delete(db.downloadRecords)..where((t) => t.episodeId.equals(episodeId))).go();
+  }
+
   /// Gets downloaded episodes.
-  Stream<List<Episode>> get downloadedEpisodes {
+  Stream<List<Episode>> getDownloadedEpisodes() {
     final db = _database;
     final query = db.select(db.episodes)
       ..where((t) => t.localPath.isNotNull());
