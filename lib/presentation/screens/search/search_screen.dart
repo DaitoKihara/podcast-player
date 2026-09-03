@@ -58,9 +58,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Search'),
-      ),
+      appBar: AppBar(title: const Text('Search')),
       body: Column(
         children: [
           Padding(
@@ -90,9 +88,7 @@ class _SearchScreenState extends State<SearchScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _results.isEmpty
-                    ? const Center(
-                        child: Text('No results. Try searching!'),
-                      )
+                    ? const Center(child: Text('No results. Try searching!'))
                     : ListView.builder(
                         itemCount: _results.length,
                         itemBuilder: (context, index) {
