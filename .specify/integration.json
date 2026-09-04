@@ -2,15 +2,10 @@
   "version": "1.0.2.dev0",
   "integration_state_schema": 1,
   "installed_integrations": [
-    "hermes",
-    "agy"
+    "hermes"
   ],
   "integration_settings": {
     "hermes": {
-      "script": "sh",
-      "invoke_separator": "-"
-    },
-    "agy": {
       "script": "sh",
       "invoke_separator": "-"
     }

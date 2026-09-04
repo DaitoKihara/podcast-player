@@ -1,13 +1,11 @@
+import '../../data/datasources/local/app_database.dart';
 import '../../data/repositories/episode_repository.dart';
 
 /// Use case for marking an episode as played with 90% threshold logic.
-///
-/// If the playback position reaches 90% or more of the total duration,
-/// the episode is automatically marked as played.
 class MarkAsPlayed {
   MarkAsPlayed({
     EpisodeRepository? episodeRepository,
-  }) : _episodeRepository = episodeRepository ?? EpisodeRepository();
+  }) : _episodeRepository = episodeRepository ?? EpisodeRepository(database: AppDatabase.instance);
 
   final EpisodeRepository _episodeRepository;
 

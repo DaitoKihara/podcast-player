@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/datasources/local/app_database.dart';
 import '../../data/repositories/episode_repository.dart';
+import '../../presentation/providers/episode_providers.dart';
 import 'episode_tile.dart';
 
 /// Filter options for episode list.
@@ -11,7 +13,7 @@ enum EpisodeFilter { all, unread, favorites }
 enum EpisodeSort { newestFirst, oldestFirst }
 
 /// A widget that displays a list of episodes with filter and sort controls.
-class EpisodeList extends StatefulWidget {
+class EpisodeList extends ConsumerStatefulWidget {
   const EpisodeList({
     super.key,
     required this.podcastId,
@@ -24,66 +26,103 @@ class EpisodeList extends StatefulWidget {
   final void Function(Episode episode)? onEpisodeTap;
 
   @override
-  State<EpisodeList> createState() => _EpisodeListState();
+  ConsumerState<EpisodeList> createState() => _EpisodeListState();
 }
 
-class _EpisodeListState extends State<EpisodeList> {
+class _EpisodeListState extends ConsumerState<EpisodeList> {
   EpisodeFilter _filter = EpisodeFilter.all;
   EpisodeSort _sort = EpisodeSort.newestFirst;
-  List<Episode> _allEpisodes = [];
-  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadEpisodes();
+    // Trigger initial load
+    ref.read(episodesProvider(widget.podcastId).notifier).loadEpisodes();
   }
 
-  Future<void> _loadEpisodes() async {
-    setState(() => _isLoading = true);
-    try {
-      final episodes = await widget.episodeRepository.getEpisodes(
-        widget.podcastId,
-      );
-      setState(() {
-        _allEpisodes = episodes;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  List<Episode> get _filteredEpisodes {
-    var episodes = _allEpisodes;
+  List<Episode> _applyFilterAndSort(List<Episode> episodes) {
+    var filtered = episodes;
 
     // Apply filter
     switch (_filter) {
       case EpisodeFilter.all:
         break;
       case EpisodeFilter.unread:
-        episodes = episodes.where((e) => !e.isPlayed).toList();
+        filtered = filtered.where((e) => !e.isPlayed).toList();
       case EpisodeFilter.favorites:
-        episodes = episodes.where((e) => e.isFavorite).toList();
+        filtered = filtered.where((e) => e.isFavorite).toList();
     }
 
     // Apply sort
     switch (_sort) {
       case EpisodeSort.newestFirst:
-        episodes = List.of(episodes)
+        filtered = List.of(filtered)
           ..sort((a, b) => b.publishDate.compareTo(a.publishDate));
       case EpisodeSort.oldestFirst:
-        episodes = List.of(episodes)
+        filtered = List.of(filtered)
           ..sort((a, b) => a.publishDate.compareTo(b.publishDate));
     }
 
-    return episodes;
+    return filtered;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final episodesState = ref.watch(episodesProvider(widget.podcastId));
+    final filteredEpisodes = _applyFilterAndSort(episodesState.episodes);
+
+    return Column(
+      children: [
+        _buildFilterChips(),
+        _buildSortOptions(),
+        const Divider(height: 1),
+        Expanded(
+          child: episodesState.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : episodesState.error != null
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                          const SizedBox(height: 16),
+                          Text(episodesState.error!, style: const TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    )
+                  : filteredEpisodes.isEmpty
+                      ? _buildEmptyState()
+                      : ListView.builder(
+                          itemCount: filteredEpisodes.length,
+                          itemBuilder: (context, index) {
+                            final episode = filteredEpisodes[index];
+                            return EpisodeTile(
+                              title: episode.title,
+                              duration: Duration(seconds: episode.duration ?? 0),
+                              publishDate: episode.publishDate,
+                              isPlayed: episode.isPlayed,
+                              isFavorite: episode.isFavorite,
+                              isNew: !episode.isPlayed &&
+                                  DateTime.now()
+                                          .difference(episode.publishDate)
+                                          .inDays <
+                                      7,
+                              onTap: () => widget.onEpisodeTap?.call(episode),
+                              onFavoriteToggle: () => _toggleFavorite(episode),
+                              onMarkPlayed: () => _markAsPlayed(episode),
+                              onMarkUnplayed: () => _markAsUnplayed(episode),
+                            );
+                          },
+                        ),
+        ),
+      ],
+    );
   }
 
   Future<void> _toggleFavorite(Episode episode) async {
     try {
       await widget.episodeRepository.toggleFavorite(episode.id);
-      await _loadEpisodes();
+      ref.read(episodesProvider(widget.podcastId).notifier).loadEpisodes();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -99,7 +138,7 @@ class _EpisodeListState extends State<EpisodeList> {
         episode.id,
         episode.duration ?? 0,
       );
-      await _loadEpisodes();
+      ref.read(episodesProvider(widget.podcastId).notifier).loadEpisodes();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -112,9 +151,8 @@ class _EpisodeListState extends State<EpisodeList> {
   Future<void> _markAsUnplayed(Episode episode) async {
     try {
       await widget.episodeRepository.updatePosition(episode.id, 0);
-      // Also need to set isPlayed to false
       await widget.episodeRepository.markAsUnplayed(episode.id);
-      await _loadEpisodes();
+      ref.read(episodesProvider(widget.podcastId).notifier).loadEpisodes();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -122,47 +160,6 @@ class _EpisodeListState extends State<EpisodeList> {
         );
       }
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final filteredEpisodes = _filteredEpisodes;
-
-    return Column(
-      children: [
-        _buildFilterChips(),
-        _buildSortOptions(),
-        const Divider(height: 1),
-        Expanded(
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : filteredEpisodes.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.builder(
-                      itemCount: filteredEpisodes.length,
-                      itemBuilder: (context, index) {
-                        final episode = filteredEpisodes[index];
-                        return EpisodeTile(
-                          title: episode.title,
-                          duration: Duration(seconds: episode.duration ?? 0),
-                          publishDate: episode.publishDate,
-                          isPlayed: episode.isPlayed,
-                          isFavorite: episode.isFavorite,
-                          isNew: !episode.isPlayed &&
-                              DateTime.now()
-                                      .difference(episode.publishDate)
-                                      .inDays <
-                                  7,
-                          onTap: () => widget.onEpisodeTap?.call(episode),
-                          onFavoriteToggle: () => _toggleFavorite(episode),
-                          onMarkPlayed: () => _markAsPlayed(episode),
-                          onMarkUnplayed: () => _markAsUnplayed(episode),
-                        );
-                      },
-                    ),
-        ),
-      ],
-    );
   }
 
   Widget _buildFilterChips() {
@@ -179,15 +176,13 @@ class _EpisodeListState extends State<EpisodeList> {
           FilterChip(
             label: const Text('Unread'),
             selected: _filter == EpisodeFilter.unread,
-            onSelected: (_) =>
-                setState(() => _filter = EpisodeFilter.unread),
+            onSelected: (_) => setState(() => _filter = EpisodeFilter.unread),
           ),
           const SizedBox(width: 8),
           FilterChip(
             label: const Text('Favorites'),
             selected: _filter == EpisodeFilter.favorites,
-            onSelected: (_) =>
-                setState(() => _filter = EpisodeFilter.favorites),
+            onSelected: (_) => setState(() => _filter = EpisodeFilter.favorites),
           ),
         ],
       ),

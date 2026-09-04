@@ -9,8 +9,8 @@ import '../../domain/entities/app_exception.dart';
 /// for quick navigation later.
 class BookmarkRepository {
   BookmarkRepository({
-    AppDatabase? database,
-  }) : _database = database ?? AppDatabase.instance;
+    required AppDatabase database,
+  }) : _database = database;
 
   final AppDatabase _database;
 

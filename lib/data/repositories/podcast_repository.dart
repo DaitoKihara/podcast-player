@@ -9,9 +9,9 @@ import '../../domain/entities/podcast_search_query.dart';
 class PodcastRepository {
   PodcastRepository({
     ITunesApiClient? apiClient,
-    AppDatabase? database,
+    required AppDatabase database,
   })  : _apiClient = apiClient ?? ITunesApiClient(),
-        _database = database ?? AppDatabase.instance;
+        _database = database;
 
   final ITunesApiClient _apiClient;
   final AppDatabase _database;

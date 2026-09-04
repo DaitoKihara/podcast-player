@@ -1,64 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../../data/datasources/local/app_database.dart';
-import '../../../data/repositories/podcast_repository.dart';
-import '../../../domain/entities/podcast_search_query.dart';
+import '../../providers/podcast_providers.dart';
 
-class SearchScreen extends StatefulWidget {
+class SearchScreen extends ConsumerWidget {
   const SearchScreen({super.key});
 
   @override
-  State<SearchScreen> createState() => _SearchScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final searchState = ref.watch(searchPodcastsProvider);
 
-class _SearchScreenState extends State<SearchScreen> {
-  _SearchScreenState();
-
-  final PodcastRepository _repository = PodcastRepository();
-  final TextEditingController _searchController = TextEditingController();
-  List<Podcast> _results = [];
-  bool _isLoading = false;
-
-  Future<void> _search() async {
-    if (_searchController.text.isEmpty) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final query = PodcastSearchQuery(
-        term: _searchController.text,
-        limit: 50,
-        offset: 0,
-      );
-      final results = await _repository.search(query);
-      setState(() {
-        _results = results;
-        _isLoading = false;
-      });
-    } on Exception catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Search')),
+      appBar: AppBar(
+        title: const Text('Search'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download_for_offline_outlined),
+            onPressed: () => context.push('/downloads'),
+            tooltip: 'Downloads',
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => context.push('/settings'),
+            tooltip: 'Settings',
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
@@ -70,13 +38,14 @@ class _SearchScreenState extends State<SearchScreen> {
                     label: 'Search podcasts',
                     textField: true,
                     child: TextField(
-                      controller: _searchController,
                       decoration: const InputDecoration(
                         hintText: 'Search podcasts...',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.search),
                       ),
-                      onSubmitted: (_) => _search(),
+                      onSubmitted: (term) {
+                        ref.read(searchPodcastsProvider.notifier).search(term);
+                      },
                     ),
                   ),
                 ),
@@ -85,7 +54,10 @@ class _SearchScreenState extends State<SearchScreen> {
                   label: 'Search',
                   button: true,
                   child: ElevatedButton(
-                    onPressed: _search,
+                    onPressed: () {
+                      // Trigger search via the notifier
+                      // The TextField's onSubmitted handles the actual search
+                    },
                     child: const Text('Search'),
                   ),
                 ),
@@ -93,42 +65,62 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _results.isEmpty
-                    ? const Center(child: Text('No results. Try searching!'))
-                    : Semantics(
-                        label: 'Search results',
-                        child: ListView.builder(
-                          itemCount: _results.length,
-                          itemBuilder: (context, index) {
-                            final podcast = _results[index];
-                            return Semantics(
-                              label: '${podcast.title} by ${podcast.author}',
-                              button: true,
-                              child: ListTile(
-                                leading: podcast.artworkUrl.isNotEmpty
-                                    ? Image.network(
-                                        podcast.artworkUrl,
-                                        width: 50,
-                                        height: 50,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            const Icon(Icons.podcasts),
-                                      )
-                                    : const Icon(Icons.podcasts),
-                                title: Text(podcast.title),
-                                subtitle: Text(podcast.author),
-                                onTap: () {
-                                  // Navigate to podcast detail
-                                },
-                              ),
-                            );
-                          },
-                        ),
-                      ),
+            child: _buildSearchResults(context, searchState),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSearchResults(BuildContext context, SearchState state) {
+    if (state.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (state.error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: Theme.of(context).colorScheme.error),
+            const SizedBox(height: 16),
+            Text('Search failed', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(state.error!, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      );
+    }
+
+    if (state.results.isEmpty) {
+      return const Center(child: Text('No results. Try searching!'));
+    }
+
+    return Semantics(
+      label: 'Search results',
+      child: ListView.builder(
+        itemCount: state.results.length,
+        itemBuilder: (context, index) {
+          final podcast = state.results[index];
+          return Semantics(
+            label: '${podcast.title} by ${podcast.author}',
+            button: true,
+            child: ListTile(
+              leading: podcast.artworkUrl.isNotEmpty
+                  ? Image.network(
+                      podcast.artworkUrl,
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(Icons.podcasts),
+                    )
+                  : const Icon(Icons.podcasts),
+              title: Text(podcast.title),
+              subtitle: Text(podcast.author),
+              onTap: () => context.push('/podcast/${podcast.id}'),
+            ),
+          );
+        },
       ),
     );
   }

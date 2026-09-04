@@ -1,3 +1,4 @@
+import '../../data/datasources/local/app_database.dart';
 import '../../data/repositories/episode_repository.dart';
 import '../../services/audio_service.dart';
 
@@ -6,7 +7,7 @@ class PlayEpisode {
   PlayEpisode({
     EpisodeRepository? episodeRepository,
     AudioService? audioService,
-  })  : _episodeRepository = episodeRepository ?? EpisodeRepository(),
+  })  : _episodeRepository = episodeRepository ?? EpisodeRepository(database: AppDatabase.instance),
         _audioService = audioService ?? AudioService();
 
   final EpisodeRepository _episodeRepository;

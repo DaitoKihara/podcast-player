@@ -5,7 +5,7 @@ import '../../data/repositories/episode_repository.dart';
 class GetNewEpisodes {
   GetNewEpisodes({
     EpisodeRepository? episodeRepository,
-  }) : _episodeRepository = episodeRepository ?? EpisodeRepository();
+  }) : _episodeRepository = episodeRepository ?? EpisodeRepository(database: AppDatabase.instance);
 
   final EpisodeRepository _episodeRepository;
 

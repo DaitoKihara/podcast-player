@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../../data/datasources/local/app_database.dart';
 import '../../data/repositories/episode_repository.dart';
 import '../../data/repositories/user_preference_repository.dart';
 import '../../services/download_service.dart';
@@ -13,10 +14,10 @@ class DownloadEpisode {
     EpisodeRepository? episodeRepository,
     DownloadService? downloadService,
     UserPreferenceRepository? userPreferenceRepository,
-  })  : _episodeRepository = episodeRepository ?? EpisodeRepository(),
+  })  : _episodeRepository = episodeRepository ?? EpisodeRepository(database: AppDatabase.instance),
         _downloadService = downloadService ?? DownloadService(),
         _userPreferenceRepository =
-            userPreferenceRepository ?? UserPreferenceRepository();
+            userPreferenceRepository ?? UserPreferenceRepository(database: AppDatabase.instance);
 
   final EpisodeRepository _episodeRepository;
   final DownloadService _downloadService;
