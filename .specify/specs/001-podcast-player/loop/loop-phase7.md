@@ -47,6 +47,14 @@
 - [ ] `flutter test` が exit code 0
 - [ ] 新コードのテストが存在すること
 
+### D8: PR レビュー指摘ゼロ
+
+- [ ] Code Reviewer が MUST FIX を出していないこと
+- [ ] Code Reviewer が SHOULD FIX を 2 件以下に抑えていること
+- [ ] アーキテクチャパターン（Riverpod）に準拠していること
+- [ ] エラーハンドリングが適切に実装されていること
+- [ ] セキュリティ上の問題がないこと
+
 ## Files to Create/Modify
 
 ### New Files:
