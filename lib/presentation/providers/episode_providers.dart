@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// ignore_for_file: unused_import
 import 'package:podcast_player/data/datasources/local/app_database.dart';
 import 'package:podcast_player/data/repositories/episode_repository.dart';
 import 'package:podcast_player/presentation/providers/repository_providers.dart';

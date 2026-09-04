@@ -1,3 +1,4 @@
+import '../../data/datasources/local/app_database.dart';
 import '../../data/repositories/episode_repository.dart';
 
 class GetNewEpisodes {
