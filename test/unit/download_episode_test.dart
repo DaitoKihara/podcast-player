@@ -43,7 +43,7 @@ class MockDownloadService extends DownloadService {
 class MockUserPreferenceRepository extends UserPreferenceRepository {
   bool wifiOnly = false;
 
-  MockUserPreferenceRepository({AppDatabase? database}) : super(database: database);
+  MockUserPreferenceRepository({required super.database});
 
   @override
   Future<bool> isWifiOnlyDownloadEnabled() async => wifiOnly;
