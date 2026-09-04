@@ -89,5 +89,29 @@ void main() {
       final result = await syncService.pullPlaybackPositions();
       expect(result, false);
     });
+
+    test('syncAll returns pushFailed when sync enabled with stubs', () async {
+      final prefs = await preferenceRepository.getOrCreatePreferences();
+      await preferenceRepository.updatePreferences(
+        prefs.copyWith(syncEnabled: true),
+      );
+      syncService.initialize('test-token');
+
+      final result = await syncService.syncAll();
+      // Stubs return false, so push phase fails
+      expect(result, SyncResult.pushFailed);
+    });
+
+    test('syncAll returns disabled when auth token is cleared', () async {
+      final prefs = await preferenceRepository.getOrCreatePreferences();
+      await preferenceRepository.updatePreferences(
+        prefs.copyWith(syncEnabled: true),
+      );
+      syncService.initialize('test-token');
+      syncService.signOut();
+
+      final result = await syncService.syncAll();
+      expect(result, SyncResult.disabled);
+    });
   });
 }

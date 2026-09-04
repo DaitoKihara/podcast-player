@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import '../data/repositories/user_preference_repository.dart';
 
 /// Cross-platform sync service (v2 stub).
@@ -54,11 +56,16 @@ class SyncService {
   /// Sign out and clear sync state.
   Future<void> signOut() async {
     _authToken = null;
-    final prefs = await _preferenceRepository.getOrCreatePreferences();
-    if (prefs.syncEnabled) {
-      await _preferenceRepository.updatePreferences(
-        prefs.copyWith(syncEnabled: false),
-      );
+    try {
+      final prefs = await _preferenceRepository.getOrCreatePreferences();
+      if (prefs.syncEnabled) {
+        await _preferenceRepository.updatePreferences(
+          prefs.copyWith(syncEnabled: false),
+        );
+      }
+    } catch (e) {
+      // Auth token is already cleared; log but don't throw
+      debugPrint('Failed to disable sync on signOut: $e');
     }
   }
 
@@ -99,12 +106,20 @@ class SyncService {
     }
 
     try {
-      // Push phase
-      final pushOk = await pushSubscriptions() && await pushPlaybackPositions();
+      // Push phase — execute all operations, aggregate results
+      final pushResults = await Future.wait([
+        pushSubscriptions(),
+        pushPlaybackPositions(),
+      ]);
+      final pushOk = pushResults.every((r) => r);
       if (!pushOk) return SyncResult.pushFailed;
 
-      // Pull phase
-      final pullOk = await pullSubscriptions() && await pullPlaybackPositions();
+      // Pull phase — execute all operations, aggregate results
+      final pullResults = await Future.wait([
+        pullSubscriptions(),
+        pullPlaybackPositions(),
+      ]);
+      final pullOk = pullResults.every((r) => r);
       if (!pullOk) return SyncResult.pullFailed;
 
       return SyncResult.success;

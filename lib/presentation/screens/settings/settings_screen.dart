@@ -16,6 +16,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   UserPreference? _prefs;
   bool _isLoading = true;
   String? _error;
+  int _updateVersion = 0;
 
   @override
   void initState() {
@@ -45,6 +46,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _updatePreference({
     required UserPreference Function(UserPreference) update,
   }) async {
+    final version = ++_updateVersion;
     final current = _prefs;
     if (current == null) return;
     final updated = update(current);
@@ -55,7 +57,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final repository = ref.read(userPreferenceRepositoryProvider);
       await repository.updatePreferences(updated);
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || version != _updateVersion) return;
       // Revert on failure
       setState(() {
         _prefs = current;
@@ -82,7 +84,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              Icon(Icons.error_outline, size: 48, color: Theme.of(context).colorScheme.error),
               const SizedBox(height: 16),
               Text('Failed to load settings', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),

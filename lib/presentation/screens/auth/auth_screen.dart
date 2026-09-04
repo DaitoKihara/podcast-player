@@ -52,7 +52,9 @@ class AuthScreen extends StatelessWidget {
               TextButton(
                 onPressed: () {
                   // Skip auth for now
-                  Navigator.of(context).pop();
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  }
                 },
                 child: const Text('Skip for now'),
               ),

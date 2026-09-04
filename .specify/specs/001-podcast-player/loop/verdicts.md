@@ -1,31 +1,45 @@
 # Verdicts
 
-## D1: SyncService
+## D1: Riverpod Architecture Pattern
 - Status: pass
-- Evidence: File `lib/services/sync_service.dart` exists with all required methods: `initialize(String authToken)`, `signOut()`, `pushSubscriptions()`, `pullSubscriptions()`, `pushPlaybackPositions()`, `pullPlaybackPositions()`, `syncAll()`. The `SyncResult` enum is defined with all 5 required values: `success`, `disabled`, `pushFailed`, `pullFailed`, `error`. The class documents the sync protocol (data types synced, conflict resolution strategy using Last-Write-Wins, transport via REST API with bearer token auth, security with HTTPS and flutter_secure_storage).
-- Issues: All push/pull methods are stubs returning `false` with `// v2: Implement` comments. The `syncAll()` method will always return `SyncResult.pushFailed` because push methods return false. This is a structural stub, not a functional implementation. However, this appears intentional for Phase 8 (v2 stub) as documented in class comments.
-
-## D2: AuthScreen
-- Status: pass
-- Evidence: File `lib/presentation/screens/auth/auth_screen.dart` exists with: Google Sign-In button (`FilledButton.icon` with "Sign in with Google" label and login icon), skip button (`TextButton` with "Skip for now" label), informative text ("Sign in with Google to sync your subscriptions and playback positions across devices."). On button press, shows a `SnackBar` with message "Google Sign-In coming in v2".
-- Issues: None. All required elements present and functional as a placeholder.
-
-## D3: SettingsScreen
-- Status: pass
-- Evidence: File `lib/presentation/screens/settings_screen.dart` exists with: sync enabled `SwitchListTile` (title "Cross-device sync", calls `_updateSyncEnabled`), playback settings section (skip forward, skip backward, playback speed), download settings section (Wi-Fi only download, auto-download), appearance settings section (dark mode, font size), account section ("Sign in" ListTile). Preferences are loaded via `_prefsRepository.getOrCreatePreferences()` in `initState` and saved via `_prefsRepository.updatePreferences()` in onChanged callbacks.
-- Issues: None. All required sections and functionality present.
-
-## D4: flutter analyze
-- Status: pass
-- Evidence: Command `flutter analyze` completed with exit code 0. Output: "No issues found! (ran in 0.7s)".
+- Evidence: `settings_screen.dart` line 8 declares `class SettingsScreen extends ConsumerStatefulWidget` and line 15 declares `class _SettingsScreenState extends ConsumerState<SettingsScreen>`. Line 28 uses `ref.read(userPreferenceRepositoryProvider)` to obtain the repository. No direct instantiation of `UserPreferenceRepository` is present anywhere in the file.
 - Issues: None.
 
-## D5: flutter test
+## D2: Error Handling
 - Status: pass
-- Evidence: Command `flutter test` completed with exit code 0. Output: "All tests passed!" — 90 tests passed across multiple test files (widget_test, sleep_timer_service_test, rss_feed_parser_test, episode_download_repository_test, play_episode_test, download_episode_test, mark_as_played_test, episode_repository_test, toggle_favorite_test, audio_service_test, user_preference_repository_test, itunes_api_client_test, podcast_repository_test, bookmark_repository_test).
+- Evidence: `_loadPreferences` (lines 26-43) wraps the async work in a `try/catch` block. On exception, `_isLoading` is set to `false` and `_error` is set to `e.toString()`. The `build` method (lines 78-105) checks `_error != null` and renders an error state with an error icon, "Failed to load settings" text, the error message, and a `FilledButton` labeled "Retry" that resets state and re-invokes `_loadPreferences`.
+- Issues: None.
+
+## D3: SyncService Riverpod Integration
+- Status: pass
+- Evidence: `player_provider.dart` line 43-45 defines `userPreferenceRepositoryProvider` and lines 48-55 define `syncServiceProvider`. The `syncServiceProvider` uses `ref.watch(userPreferenceRepositoryProvider)` to obtain the preference repository and constructs `SyncService(preferenceRepository: preferenceRepository)` via the provider pattern.
+- Issues: None.
+
+## D4: Tests for New Code
+- Status: pass
+- Evidence: `test/unit/sync_service_test.dart` contains a `group('SyncService', ...)` with 9 tests covering:
+  - `isSyncEnabled` returns false when sync is disabled (line 23)
+  - `isSyncEnabled` returns false when sync enabled but no auth (line 31)
+  - `isSyncEnabled` returns true when sync enabled and auth set (line 42)
+  - `syncAll` returns disabled when sync is off (line 54)
+  - `signOut` clears auth token and disables sync (line 59)
+  - `pushSubscriptions` returns false (stub) (line 73)
+  - `pullSubscriptions` returns false (stub) (line 78)
+  - `pushPlaybackPositions` returns false (stub) (line 83)
+  - `pullPlaybackPositions` returns false (stub) (line 88)
+- Issues: None.
+
+## D5: flutter analyze
+- Status: pass
+- Evidence: `flutter analyze` exited with code 0. Output: "No issues found! (ran in 0.7s)".
+- Issues: None.
+
+## D6: flutter test
+- Status: pass
+- Evidence: `flutter test` exited with code 0. Final line: "00:01 +99: All tests passed!". Total test count is 99, meeting the ≥99 threshold.
 - Issues: None.
 
 ## Summary
-- Passed: 5/5
-- Failed: 0/5
-- Unverifiable: 0/5
+- Passed: 6/6
+- Failed: 0/6
+- Unverifiable: 0/6
