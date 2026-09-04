@@ -1,21 +1,12 @@
-import '../../data/datasources/local/app_database.dart';
 import '../../data/repositories/episode_repository.dart';
 
-/// Use case for marking an episode as played with 90% threshold logic.
 class MarkAsPlayed {
   MarkAsPlayed({
-    EpisodeRepository? episodeRepository,
-  }) : _episodeRepository = episodeRepository ?? EpisodeRepository(database: AppDatabase.instance);
+    required EpisodeRepository episodeRepository,
+  }) : _episodeRepository = episodeRepository;
 
   final EpisodeRepository _episodeRepository;
 
-  /// Updates playback position and marks as played if >= 90% threshold.
-  ///
-  /// [episodeId] The episode ID.
-  /// [positionSeconds] Current playback position in seconds.
-  /// [durationSeconds] Total duration in seconds.
-  ///
-  /// Returns true if the episode was marked as played, false otherwise.
   Future<bool> call({
     required int episodeId,
     required int positionSeconds,
@@ -33,7 +24,6 @@ class MarkAsPlayed {
     return shouldMarkPlayed;
   }
 
-  /// Checks if the given position/duration ratio meets the 90% threshold.
   static bool isThresholdMet({
     required int positionSeconds,
     required int durationSeconds,

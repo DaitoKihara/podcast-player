@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../data/datasources/local/app_database.dart';
 import '../data/repositories/user_preference_repository.dart';
 
 /// Cross-platform sync service (v2 stub).
@@ -33,8 +32,8 @@ import '../data/repositories/user_preference_repository.dart';
 /// - No plaintext credentials persisted
 class SyncService {
   SyncService({
-    UserPreferenceRepository? preferenceRepository,
-  })  : _preferenceRepository = preferenceRepository ?? UserPreferenceRepository(database: AppDatabase.instance);
+    required UserPreferenceRepository preferenceRepository,
+  })  : _preferenceRepository = preferenceRepository;
 
   final UserPreferenceRepository _preferenceRepository;
 

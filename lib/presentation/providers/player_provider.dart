@@ -143,7 +143,7 @@ final skipBackwardProvider = Provider<SkipBackwardAction>((ref) {
 /// Provider for marking episode as played.
 final markAsPlayedProvider = Provider<MarkAsPlayedAction>((ref) {
   return MarkAsPlayedAction(
-    markAsPlayed: MarkAsPlayed(),
+    markAsPlayed: MarkAsPlayed(episodeRepository: ref.watch(episodeRepositoryProvider)),
     episodeRepository: ref.watch(episodeRepositoryProvider),
   );
 });

@@ -80,7 +80,7 @@
 - [x] T018 [US2] Implement PodcastDetailScreen episode tap in `lib/presentation/screens/podcast_detail/podcast_detail_screen.dart`
 - [x] T019 [US2] Implement MiniPlayer navigation in `lib/presentation/widgets/mini_player.dart`
 - [x] T020 [US2] Add AppBar navigation to HomeScreen in `lib/presentation/screens/home/home_screen.dart`
-- [x] T21 [US2] Add AppBar navigation to SearchScreen in `lib/presentation/screens/search/search_screen.dart`
+- [x] T021 [US2] Add AppBar navigation to SearchScreen in `lib/presentation/screens/search/search_screen.dart`
 - [x] T022 [US2] Verify navigation works end-to-end
 
 **Checkpoint**: At this point, User Story 2 should be fully functional. All navigation paths work correctly.
