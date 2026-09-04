@@ -96,6 +96,14 @@ with the resolved value and today's date.
 | ID | Criterion (checkable) | How the checker verifies it | Status |
 |----|-----------------------|-----------------------------|--------|
 | D1 | <criterion> | <primary-source check> | pending |
+| D2 | <criterion> | <primary-source check> | pending |
+| D3 | <criterion> | <primary-source check> | pending |
+| D4 | <criterion> | <primary-source check> | pending |
+| D5 | <criterion> | <primary-source check> | pending |
+| D6 | <criterion> | <primary-source check> | pending |
+| D7 | `flutter analyze` がエラーなし | `flutter analyze` が exit code 0 | pending |
+| D8 | 全テストパス | `flutter test` が exit code 0 | pending |
+| D9 | PR レビュー指摘ゼロ | Code Reviewer が MUST FIX を出さないこと | pending |
 
 Statuses: pending → maker-ready → checker-pass | checker-fail → human-signed.
 

@@ -48,9 +48,7 @@ final userPreferenceRepositoryProvider = Provider<UserPreferenceRepository>((ref
 final syncServiceProvider = Provider<SyncService>((ref) {
   final preferenceRepository = ref.watch(userPreferenceRepositoryProvider);
   final service = SyncService(preferenceRepository: preferenceRepository);
-  ref.onDispose(() {
-    // v2: Clean up sync service resources
-  });
+  ref.onDispose(() => service.dispose());
   return service;
 });
 

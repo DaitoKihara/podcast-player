@@ -127,6 +127,14 @@ class SyncService {
       return SyncResult.error;
     }
   }
+
+  /// Dispose of sync service resources.
+  ///
+  /// In v2, this will close network connections and clear cached data.
+  void dispose() {
+    _authToken = null;
+    // v2: Close network connections, clear cached data
+  }
 }
 
 /// Result of a sync operation.

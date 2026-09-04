@@ -56,7 +56,7 @@ void main() {
       expect(result, SyncResult.disabled);
     });
 
-    test('signOut clears auth token and disables sync', () async {
+    test('signOut clears auth token and disables sync in DB', () async {
       final prefs = await preferenceRepository.getOrCreatePreferences();
       await preferenceRepository.updatePreferences(
         prefs.copyWith(syncEnabled: true),
@@ -68,6 +68,10 @@ void main() {
       // Sync should be disabled after sign out
       final enabled = await syncService.isSyncEnabled;
       expect(enabled, false);
+
+      // Verify database state is also updated
+      final dbPrefs = await preferenceRepository.getPreferences();
+      expect(dbPrefs?.syncEnabled, false);
     });
 
     test('pushSubscriptions returns false (stub)', () async {
