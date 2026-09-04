@@ -52,6 +52,12 @@ final syncServiceProvider = Provider<SyncService>((ref) {
   return service;
 });
 
+/// Provider for user preferences (used for theme, font size, etc.).
+final userPreferenceProvider = FutureProvider<UserPreference?>((ref) {
+  final repository = ref.watch(userPreferenceRepositoryProvider);
+  return repository.getPreferences();
+});
+
 // State
 
 /// Provider for the current player state (audio playback).

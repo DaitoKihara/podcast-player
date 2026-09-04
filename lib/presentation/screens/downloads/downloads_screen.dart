@@ -158,25 +158,28 @@ class DownloadsScreen extends ConsumerWidget {
       children: [
         _StorageHeader(episodes: episodes),
         Expanded(
-          child: ListView.builder(
-            itemCount: episodes.length,
-            itemBuilder: (context, index) {
-              final episode = episodes[index];
-              return EpisodeTile(
-                title: episode.title,
-                duration: Duration(seconds: episode.duration ?? 0),
-                publishDate: episode.publishDate,
-                isPlayed: episode.isPlayed,
-                isFavorite: episode.isFavorite,
-                isNew: !episode.isPlayed,
-                localPath: episode.localPath,
-                onTap: () {},
-                onDeleteDownload: () async {
-                  final controller = ref.read(downloadEpisodeProvider.notifier);
-                  await controller.deleteDownload(episode);
-                },
-              );
-            },
+          child: Semantics(
+            label: 'Downloaded episodes list',
+            child: ListView.builder(
+              itemCount: episodes.length,
+              itemBuilder: (context, index) {
+                final episode = episodes[index];
+                return EpisodeTile(
+                  title: episode.title,
+                  duration: Duration(seconds: episode.duration ?? 0),
+                  publishDate: episode.publishDate,
+                  isPlayed: episode.isPlayed,
+                  isFavorite: episode.isFavorite,
+                  isNew: !episode.isPlayed,
+                  localPath: episode.localPath,
+                  onTap: () {},
+                  onDeleteDownload: () async {
+                    final controller = ref.read(downloadEpisodeProvider.notifier);
+                    await controller.deleteDownload(episode);
+                  },
+                );
+              },
+            ),
           ),
         ),
       ],

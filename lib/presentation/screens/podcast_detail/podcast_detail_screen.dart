@@ -97,9 +97,13 @@ class _PodcastDetailScreenState extends State<PodcastDetailScreen> {
         title: Text(_isSubscribed ? 'Podcast' : 'Podcast Detail'),
         actions: [
           if (_isSubscribed)
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _isLoadingEpisodes ? null : _refreshEpisodes,
+            Semantics(
+              label: 'Refresh episodes',
+              button: true,
+              child: IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: _isLoadingEpisodes ? null : _refreshEpisodes,
+              ),
             ),
         ],
       ),
@@ -114,10 +118,14 @@ class _PodcastDetailScreenState extends State<PodcastDetailScreen> {
                 if (_isLoading)
                   const CircularProgressIndicator()
                 else
-                  ElevatedButton(
-                    onPressed: _toggleSubscription,
-                    child:
-                        Text(_isSubscribed ? 'Unsubscribe' : 'Subscribe'),
+                  Semantics(
+                    label: _isSubscribed ? 'Unsubscribe' : 'Subscribe',
+                    button: true,
+                    child: ElevatedButton(
+                      onPressed: _toggleSubscription,
+                      child:
+                          Text(_isSubscribed ? 'Unsubscribe' : 'Subscribe'),
+                    ),
                   ),
               ],
             ),

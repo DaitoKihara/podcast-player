@@ -140,25 +140,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: const Text('Skip forward'),
             subtitle: Text('${prefs.skipForwardInterval} seconds'),
             leading: const Icon(Icons.skip_next),
-            onTap: () {
-              // v2: Show dialog to adjust skip interval
-            },
+            onTap: () => _showSkipIntervalDialog(isForward: true),
           ),
           ListTile(
             title: const Text('Skip backward'),
             subtitle: Text('${prefs.skipBackwardInterval} seconds'),
             leading: const Icon(Icons.skip_previous),
-            onTap: () {
-              // v2: Show dialog to adjust skip interval
-            },
+            onTap: () => _showSkipIntervalDialog(isForward: false),
           ),
           ListTile(
             title: const Text('Playback speed'),
             subtitle: Text('${prefs.defaultPlaybackSpeed}x'),
             leading: const Icon(Icons.speed),
-            onTap: () {
-              // v2: Show speed picker dialog
-            },
+            onTap: () => _showPlaybackSpeedDialog(),
           ),
           const Divider(),
 
@@ -199,9 +193,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: const Text('Font size'),
             subtitle: Text('${prefs.fontSize}x'),
             leading: const Icon(Icons.text_fields),
-            onTap: () {
-              // v2: Show font size slider dialog
-            },
+            onTap: () => _showFontSizeDialog(),
           ),
           const Divider(),
 
@@ -218,6 +210,85 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _showSkipIntervalDialog({required bool isForward}) async {
+    final current = isForward ? _prefs!.skipForwardInterval : _prefs!.skipBackwardInterval;
+    final options = [5, 10, 15, 30, 45, 60];
+
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(isForward ? 'Skip forward interval' : 'Skip backward interval'),
+        children: [
+          for (final sec in options)
+            RadioListTile<int>(
+              title: Text('$sec seconds'),
+              value: sec,
+              groupValue: current,
+              onChanged: (v) => Navigator.of(context).pop(v),
+            ),
+        ],
+      ),
+    );
+
+    if (selected != null) {
+      if (isForward) {
+        await _updatePreference(update: (p) => p.copyWith(skipForwardInterval: selected));
+      } else {
+        await _updatePreference(update: (p) => p.copyWith(skipBackwardInterval: selected));
+      }
+    }
+  }
+
+  Future<void> _showPlaybackSpeedDialog() async {
+    final current = _prefs!.defaultPlaybackSpeed;
+    final options = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0];
+
+    final selected = await showDialog<double>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Playback speed'),
+        children: [
+          for (final speed in options)
+            RadioListTile<double>(
+              title: Text('${speed}x${speed == current ? ' (current)' : ''}'),
+              value: speed,
+              groupValue: current,
+              onChanged: (v) => Navigator.of(context).pop(v),
+            ),
+        ],
+      ),
+    );
+
+    if (selected != null) {
+      await _updatePreference(update: (p) => p.copyWith(defaultPlaybackSpeed: selected));
+    }
+  }
+
+  Future<void> _showFontSizeDialog() async {
+    final current = _prefs!.fontSize;
+    final options = [0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5];
+
+    final selected = await showDialog<double>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Font size'),
+        children: [
+          for (final size in options)
+            RadioListTile<double>(
+              title: Text('${size}x${size == current ? ' (current)' : ''}'),
+              value: size,
+              groupValue: current,
+              onChanged: (v) => Navigator.of(context).pop(v),
+            ),
+        ],
+      ),
+    );
+
+    if (selected != null) {
+      await _updatePreference(update: (p) => p.copyWith(fontSize: selected));
+    }
   }
 }
 

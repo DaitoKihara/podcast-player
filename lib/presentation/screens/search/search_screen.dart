@@ -66,20 +66,28 @@ class _SearchScreenState extends State<SearchScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: const InputDecoration(
-                      hintText: 'Search podcasts...',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.search),
+                  child: Semantics(
+                    label: 'Search podcasts',
+                    textField: true,
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: const InputDecoration(
+                        hintText: 'Search podcasts...',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onSubmitted: (_) => _search(),
                     ),
-                    onSubmitted: (_) => _search(),
                   ),
                 ),
                 const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _search,
-                  child: const Text('Search'),
+                Semantics(
+                  label: 'Search',
+                  button: true,
+                  child: ElevatedButton(
+                    onPressed: _search,
+                    child: const Text('Search'),
+                  ),
                 ),
               ],
             ),
@@ -89,28 +97,35 @@ class _SearchScreenState extends State<SearchScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : _results.isEmpty
                     ? const Center(child: Text('No results. Try searching!'))
-                    : ListView.builder(
-                        itemCount: _results.length,
-                        itemBuilder: (context, index) {
-                          final podcast = _results[index];
-                          return ListTile(
-                            leading: podcast.artworkUrl.isNotEmpty
-                                ? Image.network(
-                                    podcast.artworkUrl,
-                                    width: 50,
-                                    height: 50,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) =>
-                                        const Icon(Icons.podcasts),
-                                  )
-                                : const Icon(Icons.podcasts),
-                            title: Text(podcast.title),
-                            subtitle: Text(podcast.author),
-                            onTap: () {
-                              // Navigate to podcast detail
-                            },
-                          );
-                        },
+                    : Semantics(
+                        label: 'Search results',
+                        child: ListView.builder(
+                          itemCount: _results.length,
+                          itemBuilder: (context, index) {
+                            final podcast = _results[index];
+                            return Semantics(
+                              label: '${podcast.title} by ${podcast.author}',
+                              button: true,
+                              child: ListTile(
+                                leading: podcast.artworkUrl.isNotEmpty
+                                    ? Image.network(
+                                        podcast.artworkUrl,
+                                        width: 50,
+                                        height: 50,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) =>
+                                            const Icon(Icons.podcasts),
+                                      )
+                                    : const Icon(Icons.podcasts),
+                                title: Text(podcast.title),
+                                subtitle: Text(podcast.author),
+                                onTap: () {
+                                  // Navigate to podcast detail
+                                },
+                              ),
+                            );
+                          },
+                        ),
                       ),
           ),
         ],

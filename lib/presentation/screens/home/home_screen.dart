@@ -51,28 +51,35 @@ class _HomeScreenState extends State<HomeScreen> {
               ? const Center(
                   child: Text('No subscriptions. Search for podcasts!'),
                 )
-              : ListView.builder(
-                  itemCount: _subscribedPodcasts.length,
-                  itemBuilder: (context, index) {
-                    final podcast = _subscribedPodcasts[index];
-                    return ListTile(
-                      leading: podcast.artworkUrl.isNotEmpty
-                          ? Image.network(
-                              podcast.artworkUrl,
-                              width: 50,
-                              height: 50,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  const Icon(Icons.podcasts),
-                            )
-                          : const Icon(Icons.podcasts),
-                      title: Text(podcast.title),
-                      subtitle: Text(podcast.author),
-                      onTap: () {
-                        // Navigate to podcast detail
-                      },
-                    );
-                  },
+              : Semantics(
+                  label: 'Subscriptions list',
+                  child: ListView.builder(
+                    itemCount: _subscribedPodcasts.length,
+                    itemBuilder: (context, index) {
+                      final podcast = _subscribedPodcasts[index];
+                      return Semantics(
+                        label: '${podcast.title} by ${podcast.author}',
+                        button: true,
+                        child: ListTile(
+                          leading: podcast.artworkUrl.isNotEmpty
+                              ? Image.network(
+                                  podcast.artworkUrl,
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      const Icon(Icons.podcasts),
+                                )
+                              : const Icon(Icons.podcasts),
+                          title: Text(podcast.title),
+                          subtitle: Text(podcast.author),
+                          onTap: () {
+                            // Navigate to podcast detail
+                          },
+                        ),
+                      );
+                    },
+                  ),
                 ),
     );
   }

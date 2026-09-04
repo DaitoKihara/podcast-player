@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
 import 'router/app_router.dart';
+import 'presentation/providers/player_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,25 +27,47 @@ Future<void> main() async {
   );
 }
 
-class PodcastPlayerApp extends StatelessWidget {
+class PodcastPlayerApp extends ConsumerWidget {
   const PodcastPlayerApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Podcast Player',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
-          brightness: Brightness.dark,
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Load user preferences for theme and font size
+    final prefsAsync = ref.watch(userPreferenceProvider);
+
+    return prefsAsync.when(
+      data: (prefs) => MaterialApp.router(
+        title: 'Podcast Player',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
         ),
-        useMaterial3: true,
+        darkTheme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.deepPurple,
+            brightness: Brightness.dark,
+          ),
+          useMaterial3: true,
+        ),
+        themeMode: prefs?.darkMode == true ? ThemeMode.dark : ThemeMode.light,
+        routerConfig: appRouter,
       ),
-      routerConfig: appRouter,
+      loading: () => MaterialApp.router(
+        title: 'Podcast Player',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
+        ),
+        routerConfig: appRouter,
+      ),
+      error: (_, __) => MaterialApp.router(
+        title: 'Podcast Player',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
+        ),
+        routerConfig: appRouter,
+      ),
     );
   }
 }

@@ -35,27 +35,37 @@ class PlayerScreen extends ConsumerWidget {
         title: const Text('Player'),
         actions: [
           // Sleep timer button
-          IconButton(
-            icon: Icon(
-              sleepTimerService.isActive
-                  ? Icons.bedtime
-                  : Icons.bedtime_outlined,
-              color: sleepTimerService.isActive
-                  ? Theme.of(context).colorScheme.primary
-                  : null,
+          Semantics(
+            label: sleepTimerService.isActive
+                ? 'Sleep timer active'
+                : 'Set sleep timer',
+            button: true,
+            child: IconButton(
+              icon: Icon(
+                sleepTimerService.isActive
+                    ? Icons.bedtime
+                    : Icons.bedtime_outlined,
+                color: sleepTimerService.isActive
+                    ? Theme.of(context).colorScheme.primary
+                    : null,
+              ),
+              onPressed: () => _showSleepTimerDialog(context, ref),
             ),
-            onPressed: () => _showSleepTimerDialog(context, ref),
           ),
-          PopupMenuButton<double>(
-            icon: Text('${speed}x'),
-            onSelected: audioService.setSpeed,
-            itemBuilder: (context) => [
-              for (final s in [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0])
-                PopupMenuItem(
-                  value: s.toDouble(),
-                  child: Text('${s}x${s == speed ? ' ✓' : ''}'),
-                ),
-            ],
+          Semantics(
+            label: 'Playback speed ${speed}x',
+            button: true,
+            child: PopupMenuButton<double>(
+              icon: Text('${speed}x'),
+              onSelected: audioService.setSpeed,
+              itemBuilder: (context) => [
+                for (final s in [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0])
+                  PopupMenuItem(
+                    value: s.toDouble(),
+                    child: Text('${s}x${s == speed ? ' ✓' : ''}'),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
@@ -65,37 +75,48 @@ class PlayerScreen extends ConsumerWidget {
           child: Column(
             children: [
               Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.podcasts,
-                      size: 120,
-                      color: Theme.of(context).colorScheme.primary,
+                child: Semantics(
+                  label: 'Album artwork',
+                  image: true,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.podcasts,
+                        size: 120,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              Text(
-                'Episode ${playerState.episodeId}',
-                style: Theme.of(context).textTheme.headlineSmall,
-                textAlign: TextAlign.center,
+              Semantics(
+                label: 'Episode ${playerState.episodeId}',
+                child: Text(
+                  'Episode ${playerState.episodeId}',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                  textAlign: TextAlign.center,
+                ),
               ),
               const SizedBox(height: 24),
               Column(
                 children: [
-                  Slider(
-                    value: position.inSeconds.toDouble(),
-                    max: duration.inSeconds.toDouble().clamp(1.0, double.infinity),
-                    onChanged: isLoading
-                        ? null
-                        : (value) {
-                            audioService.seek(Duration(seconds: value.toInt()));
-                          },
+                  Semantics(
+                    label: 'Seek bar, ${formatDuration(position)} of ${formatDuration(duration)}',
+                    slider: true,
+                    child: Slider(
+                      value: position.inSeconds.toDouble(),
+                      max: duration.inSeconds.toDouble().clamp(1.0, double.infinity),
+                      onChanged: isLoading
+                          ? null
+                          : (value) {
+                              audioService.seek(Duration(seconds: value.toInt()));
+                            },
+                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -113,10 +134,14 @@ class PlayerScreen extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.replay_10),
-                    iconSize: 40,
-                    onPressed: isLoading ? null : audioService.skipBackward,
+                  Semantics(
+                    label: 'Skip backward 10 seconds',
+                    button: true,
+                    child: IconButton(
+                      icon: const Icon(Icons.replay_10),
+                      iconSize: 40,
+                      onPressed: isLoading ? null : audioService.skipBackward,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Container(
@@ -124,33 +149,41 @@ class PlayerScreen extends ConsumerWidget {
                       shape: BoxShape.circle,
                       color: Theme.of(context).colorScheme.primaryContainer,
                     ),
-                    child: IconButton(
-                      icon: isLoading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Icon(
-                              isPlaying ? Icons.pause : Icons.play_arrow,
-                              size: 40,
-                            ),
-                      onPressed: isLoading
-                          ? null
-                          : () {
-                              if (isPlaying) {
-                                audioService.pause();
-                              } else {
-                                audioService.resume();
-                              }
-                            },
+                    child: Semantics(
+                      label: isPlaying ? 'Pause' : 'Play',
+                      button: true,
+                      child: IconButton(
+                        icon: isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Icon(
+                                isPlaying ? Icons.pause : Icons.play_arrow,
+                                size: 40,
+                              ),
+                        onPressed: isLoading
+                            ? null
+                            : () {
+                                if (isPlaying) {
+                                  audioService.pause();
+                                } else {
+                                  audioService.resume();
+                                }
+                              },
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
-                  IconButton(
-                    icon: const Icon(Icons.forward_30),
-                    iconSize: 40,
-                    onPressed: isLoading ? null : audioService.skipForward,
+                  Semantics(
+                    label: 'Skip forward 30 seconds',
+                    button: true,
+                    child: IconButton(
+                      icon: const Icon(Icons.forward_30),
+                      iconSize: 40,
+                      onPressed: isLoading ? null : audioService.skipForward,
+                    ),
                   ),
                 ],
               ),
@@ -169,9 +202,13 @@ class PlayerScreen extends ConsumerWidget {
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       const SizedBox(width: 8),
-                      TextButton(
-                        onPressed: () => sleepTimerService.cancelTimer(),
-                        child: const Text('Cancel'),
+                      Semantics(
+                        label: 'Cancel sleep timer',
+                        button: true,
+                        child: TextButton(
+                          onPressed: () => sleepTimerService.cancelTimer(),
+                          child: const Text('Cancel'),
+                        ),
                       ),
                     ],
                   ),
@@ -182,16 +219,24 @@ class PlayerScreen extends ConsumerWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    TextButton.icon(
-                      onPressed: () => _addBookmark(context, ref),
-                      icon: const Icon(Icons.bookmark_add),
-                      label: const Text('Add Bookmark'),
+                    Semantics(
+                      label: 'Add bookmark',
+                      button: true,
+                      child: TextButton.icon(
+                        onPressed: () => _addBookmark(context, ref),
+                        icon: const Icon(Icons.bookmark_add),
+                        label: const Text('Add Bookmark'),
+                      ),
                     ),
                     const SizedBox(width: 16),
-                    TextButton.icon(
-                      onPressed: () => _showBookmarksDialog(context, ref),
-                      icon: const Icon(Icons.bookmarks),
-                      label: const Text('Bookmarks'),
+                    Semantics(
+                      label: 'View bookmarks',
+                      button: true,
+                      child: TextButton.icon(
+                        onPressed: () => _showBookmarksDialog(context, ref),
+                        icon: const Icon(Icons.bookmarks),
+                        label: const Text('Bookmarks'),
+                      ),
                     ),
                   ],
                 ),
