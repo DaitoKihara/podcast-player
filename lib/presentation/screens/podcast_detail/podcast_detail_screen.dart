@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/episode_repository.dart';
+import '../../providers/episode_providers.dart';
 import '../../providers/podcast_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/player_provider.dart' hide episodeRepositoryProvider;
@@ -31,7 +32,7 @@ class PodcastDetailScreen extends ConsumerWidget {
               button: true,
               child: IconButton(
                 icon: const Icon(Icons.refresh),
-                onPressed: () => _refreshEpisodes(ref, episodeRepository),
+                onPressed: () => _refreshEpisodes(context, ref, episodeRepository),
               ),
             ),
         ],
@@ -77,7 +78,7 @@ class PodcastDetailScreen extends ConsumerWidget {
                 label: 'Subscribe',
                 button: true,
                 child: ElevatedButton(
-                  onPressed: () => _toggleSubscription(ref),
+                  onPressed: () => _toggleSubscription(context, ref),
                   child: const Text('Subscribe'),
                 ),
               ),
@@ -109,6 +110,7 @@ class PodcastDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _refreshEpisodes(
+    BuildContext context,
     WidgetRef ref,
     EpisodeRepository episodeRepository,
   ) async {
@@ -116,13 +118,54 @@ class PodcastDetailScreen extends ConsumerWidget {
       final podcast = await ref.read(podcastProvider(podcastId).future);
       if (podcast != null && podcast.rssUrl.isNotEmpty) {
         await episodeRepository.refreshEpisodes(podcastId, podcast.rssUrl);
+        // Refresh the episode list after RSS refresh
+        ref.read(episodesProvider(podcastId).notifier).loadEpisodes();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Episodes refreshed')),
+          );
+        }
       }
     } catch (e) {
-      // Error handled by provider
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to refresh: $e')),
+        );
+      }
     }
   }
 
-  Future<void> _toggleSubscription(WidgetRef ref) async {
-    // TODO: Implement subscription toggle via Riverpod notifier
+  Future<void> _toggleSubscription(BuildContext context, WidgetRef ref) async {
+    try {
+      final podcast = await ref.read(podcastProvider(podcastId).future);
+      if (podcast == null) return;
+
+      final repository = ref.read(podcastRepositoryProvider);
+      final subscription = await repository.getSubscription(podcastId);
+
+      if (subscription != null) {
+        await repository.unsubscribe(podcastId);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Unsubscribed')),
+          );
+        }
+      } else {
+        await repository.subscribe(podcast);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Subscribed')),
+          );
+        }
+      }
+      // Invalidate the provider to refresh UI
+      ref.invalidate(podcastProvider(podcastId));
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 }

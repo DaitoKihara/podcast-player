@@ -4,11 +4,24 @@ import 'package:go_router/go_router.dart';
 
 import '../../providers/podcast_providers.dart';
 
-class SearchScreen extends ConsumerWidget {
+class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SearchScreen> createState() => _SearchScreenState();
+}
+
+class _SearchScreenState extends ConsumerState<SearchScreen> {
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final searchState = ref.watch(searchPodcastsProvider);
 
     return Scaffold(
@@ -38,6 +51,7 @@ class SearchScreen extends ConsumerWidget {
                     label: 'Search podcasts',
                     textField: true,
                     child: TextField(
+                      controller: _searchController,
                       decoration: const InputDecoration(
                         hintText: 'Search podcasts...',
                         border: OutlineInputBorder(),
@@ -55,8 +69,10 @@ class SearchScreen extends ConsumerWidget {
                   button: true,
                   child: ElevatedButton(
                     onPressed: () {
-                      // Trigger search via the notifier
-                      // The TextField's onSubmitted handles the actual search
+                      final term = _searchController.text.trim();
+                      if (term.isNotEmpty) {
+                        ref.read(searchPodcastsProvider.notifier).search(term);
+                      }
                     },
                     child: const Text('Search'),
                   ),
