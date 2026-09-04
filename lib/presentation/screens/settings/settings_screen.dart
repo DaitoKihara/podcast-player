@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/datasources/local/app_database.dart';
-import '../../../data/repositories/user_preference_repository.dart';
+import '../../../presentation/providers/player_provider.dart';
 
 /// Settings screen with sync toggle and other configuration options.
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
-  final UserPreferenceRepository _prefsRepository = UserPreferenceRepository();
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   UserPreference? _prefs;
   bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -23,19 +24,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadPreferences() async {
-    final prefs = await _prefsRepository.getOrCreatePreferences();
-    setState(() {
-      _prefs = prefs;
-      _isLoading = false;
-    });
+    try {
+      final repository = ref.read(userPreferenceRepositoryProvider);
+      final prefs = await repository.getOrCreatePreferences();
+      if (!mounted) return;
+      setState(() {
+        _prefs = prefs;
+        _isLoading = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _error = e.toString();
+      });
+    }
   }
 
-  Future<void> _updateSyncEnabled(bool value) async {
-    if (_prefs == null) return;
+  Future<void> _updatePreference({
+    required UserPreference Function(UserPreference) update,
+  }) async {
+    final current = _prefs;
+    if (current == null) return;
+    final updated = update(current);
     setState(() {
-      _prefs = _prefs!.copyWith(syncEnabled: value);
+      _prefs = updated;
     });
-    await _prefsRepository.updatePreferences(_prefs!);
+    try {
+      final repository = ref.read(userPreferenceRepositoryProvider);
+      await repository.updatePreferences(updated);
+    } catch (e) {
+      if (!mounted) return;
+      // Revert on failure
+      setState(() {
+        _prefs = current;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save: $e')),
+      );
+    }
   }
 
   @override
@@ -44,6 +72,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return Scaffold(
         appBar: AppBar(title: const Text('Settings')),
         body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Settings')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Failed to load settings', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Text(_error!, style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () {
+                  setState(() {
+                    _isLoading = true;
+                    _error = null;
+                  });
+                  _loadPreferences();
+                },
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -61,7 +118,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'Sync subscriptions and playback positions across devices',
             ),
             value: prefs.syncEnabled,
-            onChanged: _updateSyncEnabled,
+            onChanged: (value) => _updatePreference(
+              update: (p) => p.copyWith(syncEnabled: value),
+            ),
             secondary: const Icon(Icons.sync),
           ),
           if (prefs.syncEnabled) ...[
@@ -107,24 +166,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Wi-Fi only download'),
             subtitle: const Text('Only download episodes when connected to Wi-Fi'),
             value: prefs.downloadOnlyOnWifi,
-            onChanged: (value) {
-              setState(() {
-                _prefs = _prefs!.copyWith(downloadOnlyOnWifi: value);
-              });
-              _prefsRepository.updatePreferences(_prefs!);
-            },
+            onChanged: (value) => _updatePreference(
+              update: (p) => p.copyWith(downloadOnlyOnWifi: value),
+            ),
             secondary: const Icon(Icons.wifi),
           ),
           SwitchListTile(
             title: const Text('Auto-download'),
             subtitle: const Text('Automatically download new episodes'),
             value: prefs.autoDownload,
-            onChanged: (value) {
-              setState(() {
-                _prefs = _prefs!.copyWith(autoDownload: value);
-              });
-              _prefsRepository.updatePreferences(_prefs!);
-            },
+            onChanged: (value) => _updatePreference(
+              update: (p) => p.copyWith(autoDownload: value),
+            ),
             secondary: const Icon(Icons.download),
           ),
           const Divider(),
@@ -135,12 +188,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Dark mode'),
             subtitle: const Text('Use dark theme'),
             value: prefs.darkMode,
-            onChanged: (value) {
-              setState(() {
-                _prefs = _prefs!.copyWith(darkMode: value);
-              });
-              _prefsRepository.updatePreferences(_prefs!);
-            },
+            onChanged: (value) => _updatePreference(
+              update: (p) => p.copyWith(darkMode: value),
+            ),
             secondary: const Icon(Icons.dark_mode),
           ),
           ListTile(
