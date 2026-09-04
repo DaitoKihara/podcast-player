@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:podcast_player/data/datasources/local/app_database.dart';
+import 'package:podcast_player/data/repositories/bookmark_repository.dart';
 import 'package:podcast_player/data/repositories/episode_repository.dart';
 import 'package:podcast_player/domain/entities/player_state.dart';
 import 'package:podcast_player/domain/usecases/mark_as_played.dart';
 import 'package:podcast_player/services/audio_service.dart';
+import 'package:podcast_player/services/sleep_timer_service.dart';
 
 // Services
 
@@ -17,9 +19,22 @@ final audioServiceProvider = Provider<AudioService>((ref) {
   return service;
 });
 
+/// Provider for the SleepTimerService singleton.
+final sleepTimerServiceProvider = Provider<SleepTimerService>((ref) {
+  final audioService = ref.watch(audioServiceProvider);
+  final service = SleepTimerService(audioService: audioService);
+  ref.onDispose(() => service.dispose());
+  return service;
+});
+
 /// Provider for the EpisodeRepository.
 final episodeRepositoryProvider = Provider<EpisodeRepository>((ref) {
   return EpisodeRepository(database: AppDatabase.instance);
+});
+
+/// Provider for the BookmarkRepository.
+final bookmarkRepositoryProvider = Provider<BookmarkRepository>((ref) {
+  return BookmarkRepository(database: AppDatabase.instance);
 });
 
 // State
@@ -51,6 +66,18 @@ final durationProvider = Provider<Duration>((ref) {
 /// Current playback speed.
 final speedProvider = Provider<double>((ref) {
   return ref.watch(playerStateProvider)?.speed ?? 1.0;
+});
+
+/// Current sleep timer remaining time.
+final sleepTimerRemainingProvider = StreamProvider<Duration>((ref) {
+  final timerService = ref.watch(sleepTimerServiceProvider);
+  return timerService.remainingTimeStream;
+});
+
+/// Whether sleep timer is active.
+final isSleepTimerActiveProvider = Provider<bool>((ref) {
+  final timerService = ref.watch(sleepTimerServiceProvider);
+  return timerService.isActive;
 });
 
 // Actions
@@ -103,6 +130,20 @@ final markAsPlayedProvider = Provider<MarkAsPlayedAction>((ref) {
 final toggleFavoriteProvider = Provider<ToggleFavoriteAction>((ref) {
   return ToggleFavoriteAction(
     episodeRepository: ref.watch(episodeRepositoryProvider),
+  );
+});
+
+/// Provider for setting the sleep timer.
+final setSleepTimerProvider = Provider<SetSleepTimerAction>((ref) {
+  return SetSleepTimerAction(
+    timerService: ref.watch(sleepTimerServiceProvider),
+  );
+});
+
+/// Provider for cancelling the sleep timer.
+final cancelSleepTimerProvider = Provider<CancelSleepTimerAction>((ref) {
+  return CancelSleepTimerAction(
+    timerService: ref.watch(sleepTimerServiceProvider),
   );
 });
 
@@ -302,5 +343,27 @@ class ToggleFavoriteAction {
 
   Future<void> call(int episodeId) {
     return episodeRepository.toggleFavorite(episodeId);
+  }
+}
+
+/// Action to set the sleep timer.
+class SetSleepTimerAction {
+  SetSleepTimerAction({required this.timerService});
+
+  final SleepTimerService timerService;
+
+  void call(Duration duration) {
+    timerService.setTimer(duration);
+  }
+}
+
+/// Action to cancel the sleep timer.
+class CancelSleepTimerAction {
+  CancelSleepTimerAction({required this.timerService});
+
+  final SleepTimerService timerService;
+
+  void call() {
+    timerService.cancelTimer();
   }
 }

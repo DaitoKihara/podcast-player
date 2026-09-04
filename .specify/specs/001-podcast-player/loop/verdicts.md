@@ -1,165 +1,87 @@
-# Verdicts — Loop Phase 5: Episode Management
+# Verdicts
 
-**Checked by:** Independent Checker  
-**Date:** 2026-09-03  
-**Branch:** `feature/phase5-episode-management`
+## D1: SleepTimerService
+- Status: pass
+- Evidence: File `lib/services/sleep_timer_service.dart` (91 lines) implements all required methods:
+  - `setTimer(Duration duration)` at line 46 — cancels previous timer, sets expiry time, starts Timer
+  - `cancelTimer()` at line 60 — cancels timer, clears state, emits Duration.zero
+  - `remainingTime` getter at line 32 — computes remaining time from expiry
+  - `remainingTimeStream` at line 29 — broadcast Stream<Duration> for UI updates
+  - Auto-pauses AudioService on expiry via `_onTimerExpired()` at line 71-82, which calls `_audioService?.pause()` at line 77
+  - `isActive` getter at line 40
+  - `dispose()` at line 85 for cleanup
+- No UnimplementedError, TODO, or placeholder code found.
+- Test file `test/unit/sleep_timer_service_test.dart` has 8 tests covering: initial state, setTimer, cancelTimer, timer replacement, stream emission, expiry, and dispose. All pass.
+- Issues: None.
 
----
+## D2: BookmarkRepository
+- Status: pass
+- Evidence: File `lib/data/repositories/bookmark_repository.dart` (78 lines) implements all required methods:
+  - `addBookmark()` at line 38 — validates duplicate position before insert, throws `AppException.validation` if duplicate
+  - `deleteBookmark(int bookmarkId)` at line 68
+  - `getBookmarksForEpisode(int episodeId)` at line 18 — ordered by position ascending
+  - `getBookmark(int bookmarkId)` at line 27 — returns null for missing id
+  - Additional: `deleteBookmarksForEpisode(int episodeId)` at line 74
+- Duplicate position validation: Lines 46-55 query for existing bookmark at same episodeId+position, throw `AppException.validation` if found.
+- Uses Drift database (`db.select`, `db.into`, `db.delete`) with `BookmarksCompanion` for inserts.
+- No UnimplementedError, TODO, or placeholder code found.
+- Test file `test/unit/bookmark_repository_test.dart` has 9 tests covering all methods including duplicate validation. All pass.
+- Issues: None.
 
-## D1: 90%再生で自動的に既聴マーク — ⚠️ PARTIALLY PASS
+## D3: PlayerScreen Timer UI
+- Status: pass
+- Evidence: File `lib/presentation/screens/player/player_screen.dart` contains:
+  - Sleep timer button in AppBar (lines 38-48): IconButton with `Icons.bedtime`/`Icons.bedtime_outlined`, color changes when active, calls `_showSleepTimerDialog`
+  - Timer dialog (lines 214-292): AlertDialog with preset duration buttons (5, 10, 15, 30, 60 min), cancel timer button when active, close button
+  - Remaining time display (lines 159-178): Shows "Sleep timer: [time]" with Cancel TextButton when timer is active
+  - Uses `sleepTimerServiceProvider` from Riverpod for state management
+- No UnimplementedError, TODO, or placeholder code found.
+- Issues: None.
 
-### Evidence
+## D4: PlayerScreen Bookmark UI
+- Status: pass
+- Evidence: File `lib/presentation/screens/player/player_screen.dart` contains:
+  - Bookmark add button (lines 185-189): TextButton.icon with `Icons.bookmark_add`, calls `_addBookmark`
+  - Bookmark list button (lines 191-195): TextButton.icon with `Icons.bookmarks`, calls `_showBookmarksDialog`
+  - Add bookmark dialog (lines 294-347): Shows position, optional note TextField, Add/Cancel buttons, calls `bookmarkRepo.addBookmark`
+  - Bookmarks list dialog (lines 349-412): FutureBuilder loading bookmarks, ListView with ListTile per bookmark
+  - Delete bookmark (lines 383-389): IconButton with `Icons.delete_outline`, calls `bookmarkRepo.deleteBookmark`
+  - Jump to position (lines 390-397): onTap calls `seekAction` with bookmark position and episodeId
+- No UnimplementedError, TODO, or placeholder code found.
+- Issues: None.
 
-**`lib/domain/usecases/mark_as_played.dart`** — ✅ PASS
-- 90% threshold logic present: `positionSeconds >= durationSeconds * 0.9`
-- Static helper `isThresholdMet()` with edge case handling (duration <= 0 returns false)
-- Correctly calls `markAsPlayed` when threshold met, `updatePosition` otherwise
+## D5: Integration
+- Status: pass
+- Evidence:
+  - SleepTimerService pauses AudioService on expiry: `_audioService?.pause()` at line 77 of sleep_timer_service.dart
+  - BookmarkRepository works with Drift Bookmarks table: uses `db.bookmarks`, `db.select(db.bookmarks)`, `db.into(db.bookmarks).insert(...)`, `db.delete(db.bookmarks)` with proper where clauses
+  - PlayerProvider manages timer state: `sleepTimerServiceProvider` (line 23-28) creates SleepTimerService with AudioService dependency, `sleepTimerRemainingProvider` (line 72-75) exposes remaining time stream, `isSleepTimerActiveProvider` (line 78-81) exposes active status, `setSleepTimerProvider` and `cancelSleepTimerProvider` (lines 137-148) provide action methods
+  - PlayerScreen watches `sleepTimerServiceProvider` (line 16) and uses it for UI state
+- No UnimplementedError, TODO, or placeholder code found in any integration point.
+- Issues: None.
 
-**`lib/presentation/providers/player_provider.dart`** — ⚠️ PARTIAL
-- `MarkAsPlayedAction` class exists (lines 256-276) ✅
-- `markAsPlayedProvider` exists (lines 95-100) ✅
-- **BUT:** `PlayerStateNotifier._init()` only listens to `audioService.playerStateStream` and updates local state. It does **NOT** automatically invoke `markAsPlayed` when playback ends or when position reaches 90%.
-- The contract requires: "PlayerProviderが再生終了時に自動的に判定して呼び出す" — this automatic triggering is **missing**.
+## D6: flutter analyze
+- Status: fail
+- Evidence: `flutter analyze` returned exit code 1 with 1 issue:
+  - `info • Parameter 'database' could be a super parameter. Trying converting 'database' to a super parameter • test/unit/download_episode_test.dart:46:3 • use_super_parameters`
+- This is an info-level lint (not an error or warning), but the exit code is 1, not 0.
+- The issue is in a pre-existing test file (`download_episode_test.dart`), not in any Phase 7 code.
+- Phase 7 files (`sleep_timer_service.dart`, `bookmark_repository.dart`, `player_screen.dart`, `player_provider.dart`, and their test files) have no analyzer issues.
+- Issues: Exit code is 1 due to pre-existing info lint in unrelated test file.
 
-**Unit tests** — ✅ PASS
-- `test/unit/mark_as_played_test.dart` exists with 5 test cases
-- Tests cover: duration=0, below 90%, exactly 90%, above 90%, 100%
-- All tests pass
-
-### Verdict
-The 90% threshold logic is correctly implemented in the use case, but the **automatic invocation** from PlayerProvider is missing. The action is defined but never wired to playback completion events. This is a partial implementation.
-
----
-
-## D2: お気に入りトグル — ⚠️ PARTIALLY PASS
-
-### Evidence
-
-**`ToggleFavoriteAction` in player_provider.dart** — ✅ PASS
-- Class exists (lines 279-287)
-- Delegates to `episodeRepository.toggleFavorite(episodeId)`
-- `toggleFavoriteProvider` defined (lines 103-107)
-
-**`EpisodeRepository.toggleFavorite()`** — ✅ PASS
-- Exists in `lib/data/repositories/episode_repository.dart` (lines 103-118)
-- Correctly flips `isFavorite` boolean
-- Throws `AppException` if episode not found
-
-**Unit tests** — ⚠️ PARTIAL
-- Contract requires: `test/unit/toggle_favorite_test.dart`
-- This file does **NOT exist**
-- However, `test/unit/episode_repository_test.dart` contains `toggleFavorite flips favorite status` test (lines 127-147) which passes
-- The contract explicitly lists `test/unit/toggle_favorite_test.dart` as a new file to create — this was not done
-
-### Verdict
-Functionality works correctly, but the dedicated unit test file specified in the contract is missing. The test exists in a different file.
-
----
-
-## D3: 新着エピソード検出 — ✅ PASS
-
-### Evidence
-
-**`EpisodeRepository.getNewEpisodes()`** — ✅ PASS
-- Exists in `lib/data/repositories/episode_repository.dart` (lines 147-153)
-- Returns `Stream<List<Episode>>`
-- Filters by `isPlayed == false` for the given podcastId
-- Ordered by `publishDate` descending
-
-**NEW badge in EpisodeTile** — ✅ PASS
-- `lib/presentation/widgets/episode_tile.dart` lines 84-101
-- Shows "NEW" badge when `isNew && !isPlayed`
-- Styled with primary color background and bold white text
-
-**PodcastDetailScreen integration** — ✅ PASS
-- Uses `EpisodeList` widget which renders `EpisodeTile` for each episode
-- `isNew` is computed in `EpisodeList` (lines 151-155): `!episode.isPlayed && DateTime.now().difference(episode.publishDate).inDays < 7`
-
-### Verdict
-Fully implemented. The NEW badge is displayed through the EpisodeTile within the EpisodeList on the PodcastDetailScreen.
-
----
-
-## D4: EpisodeTile ウィジェット — ✅ PASS
-
-### Evidence
-
-**File:** `lib/presentation/widgets/episode_tile.dart` (177 lines)
-
-| Requirement | Status | Location |
-|-------------|--------|----------|
-| Play indicator | ✅ | `_buildLeadingIcon()` lines 125-145: play_circle_filled (playing), check_circle (played), play_circle_outline (default) |
-| Favorite toggle | ✅ | IconButton lines 107-114: Icons.favorite / Icons.favorite_border with red color |
-| Long-press menu | ✅ | `onLongPress` → `_showContextMenu()` lines 147-176: bottom sheet with mark played/unplayed |
-| isNew state | ✅ | Parameter + NEW badge display lines 84-101 |
-| isPlayed state | ✅ | Parameter + greyed out / strikethrough text lines 72-75 |
-| isFavorite state | ✅ | Parameter + filled/outline heart icon lines 109-110 |
-
-### Verdict
-All required features are present and correctly implemented.
-
----
-
-## D5: エピソード一覧フィルター — ✅ PASS
-
-### Evidence
-
-**File:** `lib/presentation/widgets/episode_list.dart` (252 lines)
-
-| Requirement | Status | Location |
-|-------------|--------|----------|
-| Filter: All | ✅ | `EpisodeFilter.all` + FilterChip line 173-177 |
-| Filter: Unread | ✅ | `EpisodeFilter.unread` + FilterChip line 179-184 |
-| Filter: Favorites | ✅ | `EpisodeFilter.favorites` + FilterChip line 186-191 |
-| Sort: Newest | ✅ | `EpisodeSort.newestFirst` + TextButton line 203-213 |
-| Sort: Oldest | ✅ | `EpisodeSort.oldestFirst` + TextButton line 214-224 |
-
-### Verdict
-All filter and sort options are implemented and functional.
-
----
-
-## D6: flutter analyze — ✅ PASS
-
-### Evidence
-
-```
-$ flutter analyze
-No issues found! (ran in 0.6s)
-Exit code: 0
-```
-
-```
-$ flutter test
-All tests passed!
-Exit code: 0
-Total: 52 tests
-```
-
-### Verdict
-Clean analyze, all tests pass.
-
----
+## D7: flutter test
+- Status: pass
+- Evidence: `flutter test` returned exit code 0. All 90 tests passed.
+- New code has dedicated test files:
+  - `test/unit/sleep_timer_service_test.dart`: 8 tests (initial state, setTimer, cancelTimer, timer replacement, stream emission, expiry, dispose)
+  - `test/unit/bookmark_repository_test.dart`: 9 tests (empty list, add with/without note, duplicate validation, ordering, filtering by episode, getBookmark, deleteBookmark, deleteBookmarksForEpisode)
+- Tests reference actual class members: `isActive`, `remainingTime`, `remainingTimeStream`, `setTimer()`, `cancelTimer()`, `dispose()`, `addBookmark()`, `deleteBookmark()`, `getBookmarksForEpisode()`, `getBookmark()`, `deleteBookmarksForEpisode()`
+- Issues: None.
 
 ## Summary
+- Passed: 6/7
+- Failed: 1/7
+- Unverifiable: 0/7
 
-| Criterion | Verdict | Notes |
-|-----------|---------|-------|
-| D1 | ⚠️ PARTIAL | Auto-trigger on playback end missing |
-| D2 | ⚠️ PARTIAL | Dedicated test file missing |
-| D3 | ✅ PASS | Fully implemented |
-| D4 | ✅ PASS | All features present |
-| D5 | ✅ PASS | All filters/sorts present |
-| D6 | ✅ PASS | Clean analyze + all tests pass |
-
-### Issues Found
-
-1. **D1 — Missing automatic invocation:** `PlayerStateNotifier` does not call `markAsPlayed` when playback completes or reaches 90%. The action/provider exists but is never triggered automatically. This is the contract's primary requirement.
-
-2. **D2 — Missing test file:** `test/unit/toggle_favorite_test.dart` was not created as specified in the contract. The test exists in `episode_repository_test.dart` instead.
-
-### Recommendation
-
-The loop should **not** be marked as fully done. The maker needs to:
-1. Wire `markAsPlayed` invocation into `PlayerStateNotifier` (e.g., listen for position/duration changes and auto-mark at 90%)
-2. Create the dedicated `test/unit/toggle_favorite_test.dart` file
+### Notes
+The single failure (D6) is due to a pre-existing info-level lint in `test/unit/download_episode_test.dart` (use_super_parameters), which is unrelated to Phase 7 implementation. All Phase 7 code is clean and passes analysis. If this pre-existing lint is fixed, `flutter analyze` would return exit code 0.
