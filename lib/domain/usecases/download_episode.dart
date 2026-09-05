@@ -1,4 +1,4 @@
-// ignore_for_file: unnecessary_this, prefer_initializing_formals
+// ignore_for_file: prefer_initializing_formals
 import 'dart:io';
 
 import '../../data/repositories/episode_repository.dart';
