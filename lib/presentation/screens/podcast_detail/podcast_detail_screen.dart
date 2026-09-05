@@ -30,10 +30,19 @@ class PodcastDetailScreen extends ConsumerWidget {
             Semantics(
               label: 'Refresh episodes',
               button: true,
-              child: IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: () => _refreshEpisodes(context, ref, episodeRepository),
-              ),
+              child: ref.watch(episodesProvider(podcastId)).isLoading
+                  ? const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.refresh),
+                      onPressed: () => _refreshEpisodes(context, ref, episodeRepository),
+                    ),
             ),
         ],
       ),

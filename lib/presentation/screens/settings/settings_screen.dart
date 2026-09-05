@@ -5,80 +5,19 @@ import '../../../data/datasources/local/app_database.dart';
 import '../../../presentation/providers/player_provider.dart';
 
 /// Settings screen with sync toggle and other configuration options.
-class SettingsScreen extends ConsumerStatefulWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefsAsync = ref.watch(userPreferenceProvider);
 
-class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  UserPreference? _prefs;
-  bool _isLoading = true;
-  String? _error;
-  int _updateVersion = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPreferences();
-  }
-
-  Future<void> _loadPreferences() async {
-    try {
-      final repository = ref.read(userPreferenceRepositoryProvider);
-      final prefs = await repository.getOrCreatePreferences();
-      if (!mounted) return;
-      setState(() {
-        _prefs = prefs;
-        _isLoading = false;
-        _error = null;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _error = e.toString();
-      });
-    }
-  }
-
-  Future<void> _updatePreference({
-    required UserPreference Function(UserPreference) update,
-  }) async {
-    final version = ++_updateVersion;
-    final current = _prefs;
-    if (current == null) return;
-    final updated = update(current);
-    setState(() {
-      _prefs = updated;
-    });
-    try {
-      final repository = ref.read(userPreferenceRepositoryProvider);
-      await repository.updatePreferences(updated);
-    } catch (e) {
-      if (!mounted || version != _updateVersion) return;
-      // Revert on failure
-      setState(() {
-        _prefs = current;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save: $e')),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
+    return prefsAsync.when(
+      loading: () => Scaffold(
         appBar: AppBar(title: const Text('Settings')),
         body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (_error != null) {
-      return Scaffold(
+      ),
+      error: (error, stackTrace) => Scaffold(
         appBar: AppBar(title: const Text('Settings')),
         body: Center(
           child: Column(
@@ -88,26 +27,47 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 16),
               Text('Failed to load settings', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
-              Text(_error!, style: Theme.of(context).textTheme.bodySmall),
+              Text(error.toString(), style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: () {
-                  setState(() {
-                    _isLoading = true;
-                    _error = null;
-                  });
-                  _loadPreferences();
-                },
+                onPressed: () => ref.invalidate(userPreferenceProvider),
                 child: const Text('Retry'),
               ),
             ],
           ),
         ),
+      ),
+      data: (prefs) {
+        return _SettingsContent(prefs: prefs);
+      },
+    );
+  }
+}
+
+class _SettingsContent extends ConsumerWidget {
+  const _SettingsContent({required this.prefs});
+
+  final UserPreference prefs;
+
+  Future<void> _updatePreference(
+    WidgetRef ref, {
+    required UserPreference Function(UserPreference) update,
+  }) async {
+    final updated = update(prefs);
+    final messenger = ScaffoldMessenger.of(ref.context);
+    final repository = ref.read(userPreferenceRepositoryProvider);
+    try {
+      await repository.updatePreferences(updated);
+      ref.invalidate(userPreferenceProvider);
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Failed to save: $e')),
       );
     }
+  }
 
-    final prefs = _prefs!;
-
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
@@ -121,6 +81,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             value: prefs.syncEnabled,
             onChanged: (value) => _updatePreference(
+              ref,
               update: (p) => p.copyWith(syncEnabled: value),
             ),
             secondary: const Icon(Icons.sync),
@@ -140,19 +101,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: const Text('Skip forward'),
             subtitle: Text('${prefs.skipForwardInterval} seconds'),
             leading: const Icon(Icons.skip_next),
-            onTap: () => _showSkipIntervalDialog(isForward: true),
+            onTap: () => _showSkipIntervalDialog(ref, isForward: true),
           ),
           ListTile(
             title: const Text('Skip backward'),
             subtitle: Text('${prefs.skipBackwardInterval} seconds'),
             leading: const Icon(Icons.skip_previous),
-            onTap: () => _showSkipIntervalDialog(isForward: false),
+            onTap: () => _showSkipIntervalDialog(ref, isForward: false),
           ),
           ListTile(
             title: const Text('Playback speed'),
             subtitle: Text('${prefs.defaultPlaybackSpeed}x'),
             leading: const Icon(Icons.speed),
-            onTap: () => _showPlaybackSpeedDialog(),
+            onTap: () => _showPlaybackSpeedDialog(ref),
           ),
           const Divider(),
 
@@ -163,6 +124,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: const Text('Only download episodes when connected to Wi-Fi'),
             value: prefs.downloadOnlyOnWifi,
             onChanged: (value) => _updatePreference(
+              ref,
               update: (p) => p.copyWith(downloadOnlyOnWifi: value),
             ),
             secondary: const Icon(Icons.wifi),
@@ -172,6 +134,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: const Text('Automatically download new episodes'),
             value: prefs.autoDownload,
             onChanged: (value) => _updatePreference(
+              ref,
               update: (p) => p.copyWith(autoDownload: value),
             ),
             secondary: const Icon(Icons.download),
@@ -185,6 +148,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: const Text('Use dark theme'),
             value: prefs.darkMode,
             onChanged: (value) => _updatePreference(
+              ref,
               update: (p) => p.copyWith(darkMode: value),
             ),
             secondary: const Icon(Icons.dark_mode),
@@ -193,7 +157,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: const Text('Font size'),
             subtitle: Text('${prefs.fontSize}x'),
             leading: const Icon(Icons.text_fields),
-            onTap: () => _showFontSizeDialog(),
+            onTap: () => _showFontSizeDialog(ref),
           ),
           const Divider(),
 
@@ -212,82 +176,100 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Future<void> _showSkipIntervalDialog({required bool isForward}) async {
-    final current = isForward ? _prefs!.skipForwardInterval : _prefs!.skipBackwardInterval;
+  Future<void> _showSkipIntervalDialog(WidgetRef ref, {required bool isForward}) async {
+    final current = isForward ? prefs.skipForwardInterval : prefs.skipBackwardInterval;
     final options = [5, 10, 15, 30, 45, 60];
 
     final selected = await showDialog<int>(
-      context: context,
+      context: ref.context,
       builder: (context) => SimpleDialog(
         title: Text(isForward ? 'Skip forward interval' : 'Skip backward interval'),
         children: [
-          for (final sec in options)
-            RadioListTile<int>(
-              title: Text('$sec seconds'),
-              value: sec,
-              groupValue: current,
-              onChanged: (v) => Navigator.of(context).pop(v),
+          RadioGroup<int>(
+            groupValue: current,
+            onChanged: (v) => Navigator.of(context).pop(v),
+            child: Column(
+              children: [
+                for (final sec in options)
+                  RadioListTile<int>(
+                    title: Text('$sec seconds'),
+                    value: sec,
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );
 
     if (selected != null) {
       if (isForward) {
-        await _updatePreference(update: (p) => p.copyWith(skipForwardInterval: selected));
+        await _updatePreference(ref, update: (p) => p.copyWith(skipForwardInterval: selected));
       } else {
-        await _updatePreference(update: (p) => p.copyWith(skipBackwardInterval: selected));
+        await _updatePreference(ref, update: (p) => p.copyWith(skipBackwardInterval: selected));
       }
     }
   }
 
-  Future<void> _showPlaybackSpeedDialog() async {
-    final current = _prefs!.defaultPlaybackSpeed;
+  Future<void> _showPlaybackSpeedDialog(WidgetRef ref) async {
+    final current = prefs.defaultPlaybackSpeed;
     final options = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0];
 
     final selected = await showDialog<double>(
-      context: context,
+      context: ref.context,
       builder: (context) => SimpleDialog(
         title: const Text('Playback speed'),
         children: [
-          for (final speed in options)
-            RadioListTile<double>(
-              title: Text('${speed}x${speed == current ? ' (current)' : ''}'),
-              value: speed,
-              groupValue: current,
-              onChanged: (v) => Navigator.of(context).pop(v),
+          RadioGroup<double>(
+            groupValue: current,
+            onChanged: (v) => Navigator.of(context).pop(v),
+            child: Column(
+              children: [
+                for (final speed in options)
+                  RadioListTile<double>(
+                    title: Text('${speed}x${speed == current ? ' (current)' : ''}'),
+                    value: speed,
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );
 
     if (selected != null) {
-      await _updatePreference(update: (p) => p.copyWith(defaultPlaybackSpeed: selected));
+      await _updatePreference(ref, update: (p) => p.copyWith(defaultPlaybackSpeed: selected));
     }
   }
 
-  Future<void> _showFontSizeDialog() async {
-    final current = _prefs!.fontSize;
+  Future<void> _showFontSizeDialog(WidgetRef ref) async {
+    final current = prefs.fontSize;
     final options = [0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5];
 
     final selected = await showDialog<double>(
-      context: context,
+      context: ref.context,
       builder: (context) => SimpleDialog(
         title: const Text('Font size'),
         children: [
-          for (final size in options)
-            RadioListTile<double>(
-              title: Text('${size}x${size == current ? ' (current)' : ''}'),
-              value: size,
-              groupValue: current,
-              onChanged: (v) => Navigator.of(context).pop(v),
+          RadioGroup<double>(
+            groupValue: current,
+            onChanged: (v) => Navigator.of(context).pop(v),
+            child: Column(
+              children: [
+                for (final size in options)
+                  RadioListTile<double>(
+                    title: Text('${size}x${size == current ? ' (current)' : ''}'),
+                    value: size,
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );
 
     if (selected != null) {
-      await _updatePreference(update: (p) => p.copyWith(fontSize: selected));
+      await _updatePreference(ref, update: (p) => p.copyWith(fontSize: selected));
     }
   }
 }

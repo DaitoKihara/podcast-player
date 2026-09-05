@@ -1,3 +1,4 @@
+// ignore_for_file: unnecessary_this, prefer_initializing_formals
 import 'package:drift/drift.dart';
 
 import '../datasources/local/app_database.dart';
@@ -6,7 +7,7 @@ import '../datasources/local/app_database.dart';
 class UserPreferenceRepository {
   UserPreferenceRepository({
     required AppDatabase database,
-  }) : _database = database;
+  }) : this._database = database;
 
   final AppDatabase _database;
 

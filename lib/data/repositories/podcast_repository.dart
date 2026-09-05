@@ -1,3 +1,4 @@
+// ignore_for_file: unnecessary_this, prefer_initializing_formals
 import 'package:drift/drift.dart';
 
 import '../datasources/local/app_database.dart';
@@ -10,8 +11,8 @@ class PodcastRepository {
   PodcastRepository({
     ITunesApiClient? apiClient,
     required AppDatabase database,
-  })  : _apiClient = apiClient ?? ITunesApiClient(),
-        _database = database;
+  })  : this._apiClient = apiClient ?? ITunesApiClient(),
+        this._database = database;
 
   final ITunesApiClient _apiClient;
   final AppDatabase _database;
@@ -120,6 +121,6 @@ class PodcastRepository {
     final db = _database;
     final query = db.select(db.podcasts)
       ..orderBy([(t) => OrderingTerm.desc(t.subscribedAt)]);
-    return Stream.fromFuture(query.get());
+    return query.watch();
   }
 }

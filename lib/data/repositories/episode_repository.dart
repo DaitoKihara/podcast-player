@@ -1,3 +1,4 @@
+// ignore_for_file: unnecessary_this, prefer_initializing_formals
 import 'package:drift/drift.dart';
 
 import '../datasources/local/app_database.dart';
@@ -9,8 +10,8 @@ class EpisodeRepository {
   EpisodeRepository({
     RssFeedParser? rssParser,
     required AppDatabase database,
-  })  : _rssParser = rssParser ?? RssFeedParser(),
-        _database = database;
+  })  : this._rssParser = rssParser ?? RssFeedParser(),
+        this._database = database;
 
   final RssFeedParser _rssParser;
   final AppDatabase _database;
@@ -178,7 +179,7 @@ class EpisodeRepository {
     final db = _database;
     final query = db.select(db.episodes)
       ..where((t) => t.localPath.isNotNull());
-    return Stream.fromFuture(query.get());
+    return query.watch();
   }
 
   /// Gets new (unplayed) episodes for a podcast.
@@ -187,6 +188,6 @@ class EpisodeRepository {
     final query = db.select(db.episodes)
       ..where((t) => t.podcastId.equals(podcastId) & t.isPlayed.equals(false))
       ..orderBy([(t) => OrderingTerm.desc(t.publishDate)]);
-    return Stream.fromFuture(query.get());
+    return query.watch();
   }
 }

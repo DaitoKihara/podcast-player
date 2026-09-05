@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_initializing_formals
 import '../../data/repositories/episode_repository.dart';
 
 class MarkAsPlayed {
