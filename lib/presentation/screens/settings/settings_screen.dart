@@ -65,6 +65,7 @@ class _SettingsContent extends ConsumerWidget {
     final repository = ref.read(userPreferenceRepositoryProvider);
     try {
       await repository.updatePreferences(updated);
+      ref.invalidate(userPreferenceProvider);
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(content: Text('Failed to save: $e')),
