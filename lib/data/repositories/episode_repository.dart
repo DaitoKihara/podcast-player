@@ -8,9 +8,9 @@ import '../../domain/entities/app_exception.dart';
 class EpisodeRepository {
   EpisodeRepository({
     RssFeedParser? rssParser,
-    AppDatabase? database,
+    required AppDatabase database,
   })  : _rssParser = rssParser ?? RssFeedParser(),
-        _database = database ?? AppDatabase.instance;
+        _database = database;
 
   final RssFeedParser _rssParser;
   final AppDatabase _database;

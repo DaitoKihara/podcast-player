@@ -32,8 +32,8 @@ import '../data/repositories/user_preference_repository.dart';
 /// - No plaintext credentials persisted
 class SyncService {
   SyncService({
-    UserPreferenceRepository? preferenceRepository,
-  })  : _preferenceRepository = preferenceRepository ?? UserPreferenceRepository();
+    required UserPreferenceRepository preferenceRepository,
+  })  : _preferenceRepository = preferenceRepository;
 
   final UserPreferenceRepository _preferenceRepository;
 

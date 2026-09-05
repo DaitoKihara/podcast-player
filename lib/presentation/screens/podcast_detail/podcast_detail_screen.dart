@@ -1,156 +1,171 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../data/datasources/local/app_database.dart';
 import '../../../data/repositories/episode_repository.dart';
-import '../../../data/repositories/podcast_repository.dart';
+import '../../providers/episode_providers.dart';
+import '../../providers/podcast_providers.dart';
+import '../../providers/repository_providers.dart';
+import '../../providers/player_provider.dart' hide episodeRepositoryProvider;
 import '../../widgets/episode_list.dart';
 
-class PodcastDetailScreen extends StatefulWidget {
+class PodcastDetailScreen extends ConsumerWidget {
   const PodcastDetailScreen({super.key, required this.podcastId});
 
   final int podcastId;
 
   @override
-  State<PodcastDetailScreen> createState() => _PodcastDetailScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final podcastAsync = ref.watch(podcastProvider(podcastId));
+    final episodeRepository = ref.watch(episodeRepositoryProvider);
 
-class _PodcastDetailScreenState extends State<PodcastDetailScreen> {
-  final PodcastRepository _repository = PodcastRepository();
-  final EpisodeRepository _episodeRepository =
-      EpisodeRepository(database: AppDatabase.instance);
-  bool _isSubscribed = false;
-  bool _isLoading = false;
-  bool _isLoadingEpisodes = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkSubscription();
-  }
-
-  Future<void> _checkSubscription() async {
-    try {
-      final subscription = await _repository.getSubscription(widget.podcastId);
-      if (mounted) {
-        setState(() {
-          _isSubscribed = subscription != null;
-        });
-      }
-    } on Exception {
-      // Not subscribed yet
-    }
-  }
-
-  Future<void> _toggleSubscription() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final wasSubscribed = _isSubscribed;
-      if (wasSubscribed) {
-        await _repository.unsubscribe(widget.podcastId);
-      } else {
-        await _repository.subscribeById(widget.podcastId);
-      }
-
-      setState(() {
-        _isSubscribed = !wasSubscribed;
-        _isLoading = false;
-      });
-    } on Exception catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _refreshEpisodes() async {
-    setState(() => _isLoadingEpisodes = true);
-    try {
-      final podcast = await _repository.getById(widget.podcastId);
-      if (podcast != null && podcast.rssUrl.isNotEmpty) {
-        await _episodeRepository.refreshEpisodes(widget.podcastId, podcast.rssUrl);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to refresh: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoadingEpisodes = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isSubscribed ? 'Podcast' : 'Podcast Detail'),
+        title: podcastAsync.when(
+          data: (podcast) => Text(podcast?.title ?? 'Podcast Detail'),
+          loading: () => const Text('Podcast Detail'),
+          error: (_, __) => const Text('Podcast Detail'),
+        ),
         actions: [
-          if (_isSubscribed)
+          if (podcastAsync.hasValue && podcastAsync.value != null)
             Semantics(
               label: 'Refresh episodes',
               button: true,
               child: IconButton(
                 icon: const Icon(Icons.refresh),
-                onPressed: _isLoadingEpisodes ? null : _refreshEpisodes,
+                onPressed: () => _refreshEpisodes(context, ref, episodeRepository),
               ),
             ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Text('Podcast ID: ${widget.podcastId}'),
-                const SizedBox(height: 16),
-                if (_isLoading)
-                  const CircularProgressIndicator()
-                else
-                  Semantics(
-                    label: _isSubscribed ? 'Unsubscribe' : 'Subscribe',
-                    button: true,
-                    child: ElevatedButton(
-                      onPressed: _toggleSubscription,
-                      child:
-                          Text(_isSubscribed ? 'Unsubscribe' : 'Subscribe'),
-                    ),
-                  ),
-              ],
-            ),
+      body: podcastAsync.when(
+        data: (podcast) {
+          if (podcast == null) {
+            return const Center(child: Text('Podcast not found'));
+          }
+          return _buildPodcastDetail(context, ref, episodeRepository);
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: Theme.of(context).colorScheme.error),
+              const SizedBox(height: 16),
+              Text('Failed to load podcast', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Text(error.toString(), style: Theme.of(context).textTheme.bodySmall),
+            ],
           ),
-          if (_isSubscribed) ...[
-            const Divider(),
-            Expanded(
-              child: _isLoadingEpisodes
-                  ? const Center(child: CircularProgressIndicator())
-                  : EpisodeList(
-                      podcastId: widget.podcastId,
-                      episodeRepository: _episodeRepository,
-                      onEpisodeTap: (episode) {
-                        // TODO: Navigate to player
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Playing: ${episode.title}'),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
+  }
+
+  Widget _buildPodcastDetail(
+    BuildContext context,
+    WidgetRef ref,
+    EpisodeRepository episodeRepository,
+  ) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Text('Podcast ID: $podcastId'),
+              const SizedBox(height: 16),
+              Semantics(
+                label: 'Subscribe',
+                button: true,
+                child: ElevatedButton(
+                  onPressed: () => _toggleSubscription(context, ref),
+                  child: const Text('Subscribe'),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Divider(),
+        Expanded(
+          child: EpisodeList(
+            podcastId: podcastId,
+            episodeRepository: episodeRepository,
+            onEpisodeTap: (episode) async {
+              final audioService = ref.read(audioServiceProvider);
+              await audioService.play(
+                episode.audioUrl,
+                startPosition: Duration(seconds: episode.playedPosition),
+                title: episode.title,
+              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Playing: ${episode.title}')),
+                );
+              }
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _refreshEpisodes(
+    BuildContext context,
+    WidgetRef ref,
+    EpisodeRepository episodeRepository,
+  ) async {
+    try {
+      final podcast = await ref.read(podcastProvider(podcastId).future);
+      if (podcast != null && podcast.rssUrl.isNotEmpty) {
+        await episodeRepository.refreshEpisodes(podcastId, podcast.rssUrl);
+        // Refresh the episode list after RSS refresh
+        ref.read(episodesProvider(podcastId).notifier).loadEpisodes();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Episodes refreshed')),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to refresh: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleSubscription(BuildContext context, WidgetRef ref) async {
+    try {
+      final podcast = await ref.read(podcastProvider(podcastId).future);
+      if (podcast == null) return;
+
+      final repository = ref.read(podcastRepositoryProvider);
+      final subscription = await repository.getSubscription(podcastId);
+
+      if (subscription != null) {
+        await repository.unsubscribe(podcastId);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Unsubscribed')),
+          );
+        }
+      } else {
+        await repository.subscribe(podcast);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Subscribed')),
+          );
+        }
+      }
+      // Invalidate the provider to refresh UI
+      ref.invalidate(podcastProvider(podcastId));
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 }

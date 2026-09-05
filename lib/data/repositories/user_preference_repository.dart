@@ -5,8 +5,8 @@ import '../datasources/local/app_database.dart';
 /// Repository for user preference operations.
 class UserPreferenceRepository {
   UserPreferenceRepository({
-    AppDatabase? database,
-  }) : _database = database ?? AppDatabase.instance;
+    required AppDatabase database,
+  }) : _database = database;
 
   final AppDatabase _database;
 

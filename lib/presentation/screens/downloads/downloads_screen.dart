@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/datasources/local/app_database.dart';
 import '../../../data/repositories/episode_repository.dart';
+import '../../../presentation/providers/repository_providers.dart';
 import '../../../services/download_service.dart';
 import '../../widgets/episode_tile.dart';
 
@@ -10,14 +11,14 @@ import '../../widgets/episode_tile.dart';
 final downloadEpisodeProvider =
     StateNotifierProvider<DownloadController, DownloadState>((ref) {
   return DownloadController(
-    episodeRepository: EpisodeRepository(database: AppDatabase.instance),
+    episodeRepository: ref.watch(episodeRepositoryProvider),
     downloadService: DownloadService(),
   );
 });
 
 /// Provider for downloaded episodes list.
 final downloadedEpisodesProvider = StreamProvider<List<Episode>>((ref) {
-  final repository = EpisodeRepository(database: AppDatabase.instance);
+  final repository = ref.watch(episodeRepositoryProvider);
   return repository.getDownloadedEpisodes();
 });
 

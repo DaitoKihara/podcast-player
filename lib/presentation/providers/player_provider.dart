@@ -8,6 +8,7 @@ import 'package:podcast_player/data/repositories/episode_repository.dart';
 import 'package:podcast_player/data/repositories/user_preference_repository.dart';
 import 'package:podcast_player/domain/entities/player_state.dart';
 import 'package:podcast_player/domain/usecases/mark_as_played.dart';
+import 'package:podcast_player/presentation/providers/database_provider.dart';
 import 'package:podcast_player/services/audio_service.dart';
 import 'package:podcast_player/services/sleep_timer_service.dart';
 import 'package:podcast_player/services/sync_service.dart';
@@ -31,17 +32,17 @@ final sleepTimerServiceProvider = Provider<SleepTimerService>((ref) {
 
 /// Provider for the EpisodeRepository.
 final episodeRepositoryProvider = Provider<EpisodeRepository>((ref) {
-  return EpisodeRepository(database: AppDatabase.instance);
+  return EpisodeRepository(database: ref.watch(appDatabaseProvider));
 });
 
 /// Provider for the BookmarkRepository.
 final bookmarkRepositoryProvider = Provider<BookmarkRepository>((ref) {
-  return BookmarkRepository(database: AppDatabase.instance);
+  return BookmarkRepository(database: ref.watch(appDatabaseProvider));
 });
 
 /// Provider for the UserPreferenceRepository.
 final userPreferenceRepositoryProvider = Provider<UserPreferenceRepository>((ref) {
-  return UserPreferenceRepository(database: AppDatabase.instance);
+  return UserPreferenceRepository(database: ref.watch(appDatabaseProvider));
 });
 
 /// Provider for the SyncService.
@@ -142,7 +143,7 @@ final skipBackwardProvider = Provider<SkipBackwardAction>((ref) {
 /// Provider for marking episode as played.
 final markAsPlayedProvider = Provider<MarkAsPlayedAction>((ref) {
   return MarkAsPlayedAction(
-    markAsPlayed: MarkAsPlayed(),
+    markAsPlayed: MarkAsPlayed(episodeRepository: ref.watch(episodeRepositoryProvider)),
     episodeRepository: ref.watch(episodeRepositoryProvider),
   );
 });
