@@ -38,13 +38,6 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
       data: (prefs) {
-        if (prefs == null) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Settings')),
-            body: const Center(child: Text('No preferences found')),
-          );
-        }
-
         return _SettingsContent(prefs: prefs);
       },
     );

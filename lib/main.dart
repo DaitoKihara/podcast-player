@@ -49,7 +49,7 @@ class PodcastPlayerApp extends ConsumerWidget {
           ),
           useMaterial3: true,
         ),
-        themeMode: prefs?.darkMode == true ? ThemeMode.dark : ThemeMode.light,
+        themeMode: prefs.darkMode ? ThemeMode.dark : ThemeMode.light,
         routerConfig: appRouter,
       ),
       loading: () => MaterialApp.router(

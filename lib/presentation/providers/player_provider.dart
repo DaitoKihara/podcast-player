@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:podcast_player/data/datasources/local/app_database.dart';
-
 import 'package:podcast_player/data/repositories/episode_repository.dart';
 import 'package:podcast_player/domain/entities/player_state.dart';
 import 'package:podcast_player/domain/usecases/mark_as_played.dart';
@@ -39,9 +38,9 @@ final syncServiceProvider = Provider<SyncService>((ref) {
 });
 
 /// Provider for user preferences (used for theme, font size, etc.).
-final userPreferenceProvider = FutureProvider<UserPreference?>((ref) {
+final userPreferenceProvider = FutureProvider<UserPreference>((ref) {
   final repository = ref.watch(userPreferenceRepositoryProvider);
-  return repository.getPreferences();
+  return repository.getOrCreatePreferences();
 });
 
 // State
