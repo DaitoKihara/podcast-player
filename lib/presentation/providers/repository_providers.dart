@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:podcast_player/data/datasources/local/app_database.dart';
 import 'package:podcast_player/data/repositories/bookmark_repository.dart';
 import 'package:podcast_player/data/repositories/episode_repository.dart';
 import 'package:podcast_player/data/repositories/podcast_repository.dart';
@@ -27,4 +28,10 @@ final bookmarkRepositoryProvider = Provider<BookmarkRepository>((ref) {
 final userPreferenceRepositoryProvider = Provider<UserPreferenceRepository>((ref) {
   final database = ref.watch(appDatabaseProvider);
   return UserPreferenceRepository(database: database);
+});
+
+/// Provider for user preferences (used for theme, font size, etc.).
+final userPreferenceProvider = FutureProvider<UserPreference?>((ref) {
+  final repository = ref.watch(userPreferenceRepositoryProvider);
+  return repository.getPreferences();
 });
