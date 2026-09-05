@@ -120,6 +120,6 @@ class PodcastRepository {
     final db = _database;
     final query = db.select(db.podcasts)
       ..orderBy([(t) => OrderingTerm.desc(t.subscribedAt)]);
-    return Stream.fromFuture(query.get());
+    return query.watch();
   }
 }

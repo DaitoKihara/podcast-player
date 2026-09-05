@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/datasources/local/app_database.dart';
 import '../../../data/repositories/episode_repository.dart';
 import '../../../presentation/providers/repository_providers.dart';
+import '../../../presentation/providers/service_providers.dart';
 import '../../../services/download_service.dart';
 import '../../widgets/episode_tile.dart';
 
@@ -12,7 +13,7 @@ final downloadEpisodeProvider =
     StateNotifierProvider<DownloadController, DownloadState>((ref) {
   return DownloadController(
     episodeRepository: ref.watch(episodeRepositoryProvider),
-    downloadService: DownloadService(),
+    downloadService: ref.watch(downloadServiceProvider),
   );
 });
 
@@ -24,7 +25,7 @@ final downloadedEpisodesProvider = StreamProvider<List<Episode>>((ref) {
 
 /// Provider for storage usage.
 final storageUsageProvider = Provider<Future<int>>((ref) {
-  final service = DownloadService();
+  final service = ref.watch(downloadServiceProvider);
   return service.getTotalStorageUsed();
 });
 

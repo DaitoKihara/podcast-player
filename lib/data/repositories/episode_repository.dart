@@ -178,7 +178,7 @@ class EpisodeRepository {
     final db = _database;
     final query = db.select(db.episodes)
       ..where((t) => t.localPath.isNotNull());
-    return Stream.fromFuture(query.get());
+    return query.watch();
   }
 
   /// Gets new (unplayed) episodes for a podcast.
@@ -187,6 +187,6 @@ class EpisodeRepository {
     final query = db.select(db.episodes)
       ..where((t) => t.podcastId.equals(podcastId) & t.isPlayed.equals(false))
       ..orderBy([(t) => OrderingTerm.desc(t.publishDate)]);
-    return Stream.fromFuture(query.get());
+    return query.watch();
   }
 }
